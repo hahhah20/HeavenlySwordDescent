@@ -17,6 +17,7 @@ public final class SwordProjectile {
     private ItemDisplay display;
     private double y;
     private double velocity;
+    private Location landedLocation;
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
@@ -33,7 +34,6 @@ public final class SwordProjectile {
     public void spawn() {
         World world = target.getWorld();
         if (world == null) return;
-
         display = (ItemDisplay) world.spawnEntity(positionAtY(y), EntityType.ITEM_DISPLAY);
         ItemStack sword = new ItemStack(Material.NETHERITE_SWORD);
         ItemMeta meta = sword.getItemMeta();
@@ -70,34 +70,50 @@ public final class SwordProjectile {
 
     public void beginFall() {
         velocity = plugin.getConfig().getDouble("skill.fall-speed");
+        landedLocation = null;
     }
 
     public boolean tickFall() {
-        velocity = Math.min(
-                plugin.getConfig().getDouble("skill.max-fall-speed"),
-                velocity + plugin.getConfig().getDouble("skill.fall-acceleration")
-        );
+        if (display == null || display.isDead()) return false;
+        velocity = Math.min(plugin.getConfig().getDouble("skill.max-fall-speed"),
+                velocity + plugin.getConfig().getDouble("skill.fall-acceleration"));
         y -= velocity;
-        if (display != null) display.teleport(positionAtY(y));
-        return y > target.getY() + 0.8;
+        if (y <= target.getY() + 0.8) {
+            land();
+            return false;
+        }
+        display.teleport(positionAtY(y));
+        return true;
     }
 
-    /** Keep the sword fixed at the impact point while its lingering damage is active. */
+    /** Locks the actual sword ItemDisplay at the impact point. */
     public void land() {
         y = target.getY() + 0.8;
-        if (display != null) display.teleport(positionAtY(y));
+        landedLocation = positionAtY(y);
+        if (display != null && !display.isDead()) {
+            display.setTeleportDuration(0);
+            display.teleport(landedLocation);
+        }
+    }
+
+    /** Reasserts the physical sword entity position while lingering. */
+    public void keepLanded() {
+        if (display != null && !display.isDead() && landedLocation != null) {
+            display.teleport(landedLocation);
+        }
     }
 
     public Location location() {
-        return display != null ? display.getLocation() : positionAtY(y);
+        return landedLocation != null ? landedLocation.clone() : (display != null ? display.getLocation() : positionAtY(y));
     }
 
-    public double velocity() {
-        return velocity;
-    }
+    public double velocity() { return velocity; }
+
+    public boolean exists() { return display != null && !display.isDead(); }
 
     public void remove() {
         if (display != null && !display.isDead()) display.remove();
         display = null;
+        landedLocation = null;
     }
 }
