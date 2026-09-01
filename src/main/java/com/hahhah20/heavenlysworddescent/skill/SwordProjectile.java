@@ -51,22 +51,23 @@ public final class SwordProjectile {
     }
 
     /**
-     * Model Transformation (MT): the vanilla sword model's blade axis is the
-     * local Y axis. A 180-degree local-X rotation flips that axis so the blade
-     * points downward. The pose is deliberately kept independent from the
-     * entity's world yaw/pitch and from the camera.
+     * Model Transformation (MT).
+     * The ItemDisplay entity is kept FIXED and the pose is represented entirely
+     * by its local transformation. No entity yaw/pitch is used for the sword.
      */
     private void transform(float scale) {
         if (display == null) return;
 
-        Transformation transformation = display.getTransformation();
-        transformation.getTranslation().set(0f, 0f, 0f);
-        transformation.getLeftRotation().set(
-                new Quaternionf()
-                        .rotateX((float) Math.PI)
+        Transformation transformation = new Transformation(
+                new Vector3f(0f, 0f, 0f),
+                new Quaternionf().identity(),
+                new Vector3f(scale, scale, scale),
+                new Quaternionf().identity()
         );
-        transformation.getRightRotation().identity();
-        transformation.getScale().set(scale, scale, scale * 1.25f);
+
+        // ItemDisplay's item model is upright in its local display space.
+        // Rotate the complete item around its local X axis to point the tip down.
+        transformation.getLeftRotation().rotateX((float) Math.PI);
         display.setTransformation(transformation);
     }
 
