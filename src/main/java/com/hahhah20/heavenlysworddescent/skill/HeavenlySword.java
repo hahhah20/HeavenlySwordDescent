@@ -17,24 +17,38 @@ public final class HeavenlySword {
     private boolean finished;
     private BukkitRunnable task;
 
-    public HeavenlySword(HeavenlySwordDescentPlugin p, Player c, Runnable d) { this.p=p; caster=c; done=d; }
+    public HeavenlySword(HeavenlySwordDescentPlugin p, Player c, Runnable d) {
+        this.p=p;
+        caster=c;
+        done=d;
+    }
 
     public void start() {
-        var b=caster.getTargetBlockExact(p.getConfig().getInt("skill.target-range"));
-        target=b!=null?b.getLocation().add(.5,1,.5):caster.getLocation().add(caster.getLocation().getDirection().normalize().multiply(12));
+        caster.sendMessage("§f[天剑降临] §7正在锁定目标...");
+        var block=caster.getTargetBlockExact(p.getConfig().getInt("skill.target-range"));
+        if(block!=null){
+            target=block.getLocation().add(.5,1,.5);
+        } else {
+            target=caster.getLocation().clone().add(caster.getLocation().getDirection().normalize().multiply(15));
+            target.setY(caster.getLocation().getY());
+        }
+        p.getLogger().info("天剑降临目标: "+target);
+        caster.sendMessage("§f[天剑降临] §7目标锁定，天空巨剑生成。");
+
         sword=new SwordProjectile(p,target);
         sword.spawn();
         state=SwordState.CHARGING;
+
         task=new BukkitRunnable(){
             @Override public void run(){
                 if(finished){cancel();return;}
                 if(!caster.isOnline()){finish();cancel();return;}
                 tick++;
-                try {
+                try{
                     if(state==SwordState.CHARGING) charge();
                     else if(state==SwordState.FALLING) fall();
-                } catch(Throwable error) {
-                    p.getLogger().severe("天剑降临技能运行异常，正在强制清理: "+error.getMessage());
+                }catch(Throwable error){
+                    p.getLogger().severe("天剑降临异常: "+error.getMessage());
                     finish();
                     cancel();
                 }
@@ -44,15 +58,15 @@ public final class HeavenlySword {
     }
 
     private void charge(){
+        if(tick==1) caster.sendMessage("§f[天剑降临] §7蓄力开始...");
         float prog=Math.min(1f,tick/(float)p.getConfig().getInt("skill.charge-ticks"));
         WarningEffect.tick(p,target,tick);
         EnergyEffect.tick(p,target,tick);
         sword.charge(prog);
-        if(tick%10==0) target.getWorld().playSound(target,Sound.BLOCK_BEACON_AMBIENT,1f,.75f+prog);
-        if(tick>=30&&tick%2==0) target.getWorld().playSound(target,Sound.BLOCK_NOTE_BLOCK_BELL,1.3f,1.4f+prog);
         if(tick>=p.getConfig().getInt("skill.charge-ticks")){
             state=SwordState.FALLING;
             sword.beginFall();
+            caster.sendMessage("§c[天剑降临] §7巨剑坠落！");
             target.getWorld().playSound(target,Sound.ENTITY_WARDEN_SONIC_BOOM,2f,.6f);
         }
     }
@@ -62,9 +76,8 @@ public final class HeavenlySword {
         SwordTrail.tick(sword.location(),sword.velocity());
         if(!alive){
             state=SwordState.IMPACT;
-            try { ImpactEffect.execute(p,caster,target); }
-            finally {
-                // 命中后的清理必须无条件执行，避免异常导致技能永久占用 casting 状态。
+            try{ImpactEffect.execute(p,caster,target);}
+            finally{
                 state=SwordState.CLEANUP;
                 finish();
             }
@@ -74,8 +87,11 @@ public final class HeavenlySword {
     private void finish(){
         if(finished)return;
         finished=true;
-        if(task!=null) task.cancel();
-        try { if(sword!=null) sword.remove(); }
-        finally { done.run(); }
+        if(task!=null)task.cancel();
+        try{if(sword!=null)sword.remove();}
+        finally{
+            p.getLogger().info("天剑降临技能清理完成");
+            done.run();
+        }
     }
 }
