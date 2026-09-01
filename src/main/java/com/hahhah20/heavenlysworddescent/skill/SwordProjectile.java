@@ -42,6 +42,7 @@ public final class SwordProjectile {
             sword.setItemMeta(meta);
         }
         display.setItemStack(sword);
+        display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
         display.setBillboard(Display.Billboard.FIXED);
         display.setBrightness(new Display.Brightness(15, 15));
         display.setShadowRadius(0);
@@ -53,8 +54,9 @@ public final class SwordProjectile {
 
     /**
      * Model Transformation (MT).
-     * The ItemDisplay entity is kept FIXED and the pose is represented entirely
-     * by its local transformation. No entity yaw/pitch is used for the sword.
+     * Use the raw item model transform and rotate it on the display plane.
+     * The previous X-axis flip caused the sword to inherit the model's diagonal
+     * presentation. The Z-axis correction is intended to make the blade point down.
      */
     private void transform(float scale) {
         if (display == null) return;
@@ -66,7 +68,7 @@ public final class SwordProjectile {
                 new Quaternionf().identity()
         );
 
-        transformation.getLeftRotation().rotateX((float) Math.PI);
+        transformation.getLeftRotation().rotateZ((float) Math.toRadians(135.0));
         display.setTransformation(transformation);
     }
 
