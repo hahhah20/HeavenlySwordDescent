@@ -75,10 +75,9 @@ public final class HeavenlySword {
         if (!sword.exists()) { finish(); return; }
         boolean alive = sword.tickFall();
         SwordTrail.tick(sword.location(), sword.velocity());
-        if (!alive) {
+        if (!alive && sword.isLanded()) {
             try {
                 ImpactEffect.execute(p, caster, target);
-                sword.land();
                 lingerTick = 0;
                 state = SwordState.LINGERING;
             } catch (Throwable error) {
@@ -89,7 +88,7 @@ public final class HeavenlySword {
     }
 
     private void linger() {
-        if (!sword.exists()) { finish(); return; }
+        if (!sword.exists() || !sword.isLanded()) { finish(); return; }
         sword.keepLanded();
         lingerTick++;
         int interval = Math.max(1, p.getConfig().getInt("skill.linger.damage-interval-ticks", 10));
