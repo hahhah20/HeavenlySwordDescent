@@ -52,22 +52,14 @@ public final class SwordProjectile {
         transform(1f);
     }
 
-    /**
-     * Model Transformation (MT).
-     * Use the raw item model transform and rotate it on the display plane.
-     * The previous X-axis flip caused the sword to inherit the model's diagonal
-     * presentation. The Z-axis correction is intended to make the blade point down.
-     */
     private void transform(float scale) {
         if (display == null) return;
-
         Transformation transformation = new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf().identity(),
                 new Vector3f(scale, scale, scale),
                 new Quaternionf().identity()
         );
-
         transformation.getLeftRotation().rotateZ((float) Math.toRadians(135.0));
         display.setTransformation(transformation);
     }
@@ -88,6 +80,12 @@ public final class SwordProjectile {
         y -= velocity;
         if (display != null) display.teleport(positionAtY(y));
         return y > target.getY() + 0.8;
+    }
+
+    /** Keep the sword fixed at the impact point while its lingering damage is active. */
+    public void land() {
+        y = target.getY() + 0.8;
+        if (display != null) display.teleport(positionAtY(y));
     }
 
     public Location location() {
