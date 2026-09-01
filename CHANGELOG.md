@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.1.1
+- 修正巨剑 ItemDisplay 朝向。
+- 强制保持剑尖向下的显示变换。
+- 固定蓄力与坠落阶段的模型朝向。
+- 修正小版本发布号，便于服务器区分 V2.1.0 与方向修正版。
+
 ## 2.1.0
 - 正式更名为 Heavenly Sword Descent / 天剑降临
 - 加入 Item Display 巨剑
