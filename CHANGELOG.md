@@ -1,5 +1,13 @@
 # Changelog
 
+## 2.1.5
+- 巨剑命中后不再立即消失，默认在命中位置保留 4 秒。
+- 新增巨剑保留期间的周期性持续伤害。
+- 持续伤害默认每 10 ticks 触发一次，倍率为对应区域普通伤害的 0.10。
+- 持续伤害不重复施加击退，避免目标被连续击飞。
+- 新增 `skill.linger.seconds`、`skill.linger.damage-interval-ticks` 与 `skill.linger.damage-multiplier` 配置。
+- 新增 LINGERING 技能状态，确保巨剑消散后才结束本次技能释放状态。
+
 ## 2.1.4
 - 隐藏技能释放过程与冷却期间的聊天框提示，避免技能刷屏。
 - 将技能释放状态与剩余冷却时间移动到物品栏上方的 ActionBar。
