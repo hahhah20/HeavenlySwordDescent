@@ -24,7 +24,7 @@ public final class HeavenlySword {
     private BukkitRunnable task;
 
     public HeavenlySword(HeavenlySwordDescentPlugin p, Player c, Runnable d) {
-        this.p = p;
+        p = p;
         caster = c;
         done = d;
     }
@@ -72,12 +72,11 @@ public final class HeavenlySword {
     }
 
     private void fall() {
+        if (!sword.exists()) { finish(); return; }
         boolean alive = sword.tickFall();
         SwordTrail.tick(sword.location(), sword.velocity());
         if (!alive) {
-            state = SwordState.IMPACT;
             try {
-                // Initial impact happens exactly once.
                 ImpactEffect.execute(p, caster, target);
                 sword.land();
                 lingerTick = 0;
@@ -90,11 +89,12 @@ public final class HeavenlySword {
     }
 
     private void linger() {
-        // The sword remains physically present at the impact point for the full linger duration.
-        if (sword == null) { finish(); return; }
-        sword.land();
+        if (!sword.exists()) { finish(); return; }
 
+        // The actual ItemDisplay entity is deliberately kept alive and locked at impact.
+        sword.keepLanded();
         lingerTick++;
+
         int interval = Math.max(1, p.getConfig().getInt("skill.linger.damage-interval-ticks", 10));
         if (lingerTick % interval == 0) {
             DamageManager.lingeringDamage(p, caster, sword.location());
