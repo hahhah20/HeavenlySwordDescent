@@ -9,6 +9,7 @@ import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
+import org.joml.Vector3f;
 
 public final class SwordProjectile {
     private final HeavenlySwordDescentPlugin plugin;
@@ -65,8 +66,6 @@ public final class SwordProjectile {
                 new Quaternionf().identity()
         );
 
-        // ItemDisplay's item model is upright in its local display space.
-        // Rotate the complete item around its local X axis to point the tip down.
         transformation.getLeftRotation().rotateX((float) Math.PI);
         display.setTransformation(transformation);
     }
