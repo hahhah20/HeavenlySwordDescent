@@ -1,0 +1,3 @@
+package com.hahhah20.heavenlysworddescent.effect;
+import com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin;import org.bukkit.*;
+public final class WarningEffect { public static void tick(HeavenlySwordDescentPlugin p, Location c, int tick){World w=c.getWorld();if(w==null)return;int n=p.getConfig().getInt("visual.warning-points");double max=p.getConfig().getDouble("skill.radius.outer"),prog=Math.min(1,tick/(double)p.getConfig().getInt("skill.charge-ticks")),r=1+prog*(max-1);for(int i=0;i<n;i++){double a=Math.PI*2*i/n;w.spawnParticle(Particle.SOUL_FIRE_FLAME,c.clone().add(Math.cos(a)*r,.05,Math.sin(a)*r),1);}for(int i=-5;i<=5;i++){w.spawnParticle(Particle.END_ROD,c.clone().add(i*.45,.08,0),1);w.spawnParticle(Particle.END_ROD,c.clone().add(0,.08,i*.45),1);}}}
