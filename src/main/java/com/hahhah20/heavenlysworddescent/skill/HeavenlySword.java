@@ -24,7 +24,6 @@ public final class HeavenlySword {
     }
 
     public void start() {
-        caster.sendMessage("§f[天剑降临] §7正在锁定目标...");
         var block=caster.getTargetBlockExact(p.getConfig().getInt("skill.target-range"));
         if(block!=null){
             target=block.getLocation().add(.5,1,.5);
@@ -33,7 +32,6 @@ public final class HeavenlySword {
             target.setY(caster.getLocation().getY());
         }
         p.getLogger().info("天剑降临目标: "+target);
-        caster.sendMessage("§f[天剑降临] §7目标锁定，天空巨剑生成。");
 
         sword=new SwordProjectile(p,target);
         sword.spawn();
@@ -58,7 +56,6 @@ public final class HeavenlySword {
     }
 
     private void charge(){
-        if(tick==1) caster.sendMessage("§f[天剑降临] §7蓄力开始...");
         float prog=Math.min(1f,tick/(float)p.getConfig().getInt("skill.charge-ticks"));
         WarningEffect.tick(p,target,tick);
         EnergyEffect.tick(p,target,tick);
@@ -66,7 +63,6 @@ public final class HeavenlySword {
         if(tick>=p.getConfig().getInt("skill.charge-ticks")){
             state=SwordState.FALLING;
             sword.beginFall();
-            caster.sendMessage("§c[天剑降临] §7巨剑坠落！");
             target.getWorld().playSound(target,Sound.ENTITY_WARDEN_SONIC_BOOM,2f,.6f);
         }
     }
