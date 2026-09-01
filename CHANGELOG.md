@@ -1,5 +1,12 @@
 # Changelog
 
+## 2.1.4
+- 隐藏技能释放过程与冷却期间的聊天框提示，避免技能刷屏。
+- 将技能释放状态与剩余冷却时间移动到物品栏上方的 ActionBar。
+- 冷却时间以 0.1 秒精度实时更新。
+- 增加 `skill.display.actionbar` 与 `skill.display.chat-message` 配置项，为后续显示控制预留配置。
+- 保留 V2.1.3 已验证通过的剑模型方向与坠落姿态。
+
 ## 2.1.3
 - 修正巨剑 ItemDisplay 模型朝向，使剑身垂直、剑尖向下。
 - 调整 MT（Model Transform）旋转方案，避免模型继续出现斜向显示。
