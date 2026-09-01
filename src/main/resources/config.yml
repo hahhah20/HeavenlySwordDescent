@@ -1,0 +1,27 @@
+skill:
+  charge-ticks: 40
+  sword-height: 18.0
+  fall-speed: 0.65
+  fall-acceleration: 0.12
+  max-fall-speed: 4.8
+  cooldown-seconds: 20
+  target-range: 40
+  radius:
+    core: 2.0
+    middle: 3.5
+    outer: 5.0
+  damage:
+    core: 80.0
+    middle: 45.0
+    outer: 20.0
+  impact:
+    radius: 7.0
+    knockback: 2.2
+    vertical-knockback: 0.55
+  damage-caster: false
+visual:
+  sword-scale: 2.5
+  warning-points: 64
+  energy-orbits: 3
+  trail-particles: 10
+  crack-rings: 4
