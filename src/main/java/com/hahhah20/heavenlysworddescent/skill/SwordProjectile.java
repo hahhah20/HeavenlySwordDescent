@@ -2,6 +2,7 @@ package com.hahhah20.heavenlysworddescent.skill;
 
 import com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin;
 import org.bukkit.*;
+import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
@@ -40,8 +41,8 @@ public final class SwordProjectile {
             sword.setItemMeta(meta);
         }
         display.setItemStack(sword);
-        display.setBillboard(org.bukkit.entity.Display.Billboard.FIXED);
-        display.setBrightness(new org.bukkit.entity.Display.Brightness(15, 15));
+        display.setBillboard(Display.Billboard.FIXED);
+        display.setBrightness(new Display.Brightness(15, 15));
         display.setShadowRadius(0);
         display.setShadowStrength(0);
         display.setInterpolationDuration(1);
@@ -49,11 +50,17 @@ public final class SwordProjectile {
         transform(1f);
     }
 
+    /**
+     * ItemDisplay uses the item's model orientation. Rotate around the local X axis
+     * and keep that rotation identical during charging and falling so the sword tip
+     * stays pointed toward the ground instead of following the camera/billboard.
+     */
     private void transform(float scale) {
         if (display == null) return;
         Transformation transformation = display.getTransformation();
         transformation.getScale().set(scale, scale, scale * 1.25f);
-        transformation.getLeftRotation().set(new Quaternionf().rotateX((float) Math.PI));
+        transformation.getLeftRotation().set(new Quaternionf().identity().rotateX((float) Math.PI));
+        transformation.getRightRotation().set(new Quaternionf().identity());
         display.setTransformation(transformation);
     }
 
