@@ -19,6 +19,9 @@ skill:
     knockback: 2.2
     vertical-knockback: 0.55
   damage-caster: false
+  display:
+    actionbar: true
+    chat-message: false
 visual:
   sword-scale: 2.5
   warning-points: 64
