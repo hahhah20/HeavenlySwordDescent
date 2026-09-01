@@ -15,9 +15,12 @@ public final class SwordProjectile {
     private final HeavenlySwordDescentPlugin plugin;
     private final Location target;
     private ItemDisplay display;
+    private ItemDisplay landedDisplay;
+    private ItemStack swordItem;
     private double y;
     private double velocity;
     private Location landedLocation;
+    private float currentScale = 1f;
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
@@ -31,35 +34,44 @@ public final class SwordProjectile {
         return location;
     }
 
-    public void spawn() {
-        World world = target.getWorld();
-        if (world == null) return;
-        display = (ItemDisplay) world.spawnEntity(positionAtY(y), EntityType.ITEM_DISPLAY);
-        ItemStack sword = new ItemStack(Material.NETHERITE_SWORD);
-        ItemMeta meta = sword.getItemMeta();
-        if (meta != null) {
-            meta.setDisplayName("§f§l天剑降临");
-            sword.setItemMeta(meta);
-        }
-        display.setItemStack(sword);
-        display.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-        display.setBillboard(Display.Billboard.FIXED);
-        display.setBrightness(new Display.Brightness(15, 15));
-        display.setShadowRadius(0);
-        display.setShadowStrength(0);
-        display.setInterpolationDuration(1);
-        display.setTeleportDuration(1);
-        transform(1f);
-    }
-
-    private void transform(float scale) {
-        if (display == null) return;
+    private void configureDisplay(ItemDisplay d, ItemStack item, float scale) {
+        d.setItemStack(item.clone());
+        d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
+        d.setBillboard(Display.Billboard.FIXED);
+        d.setBrightness(new Display.Brightness(15, 15));
+        d.setShadowRadius(0);
+        d.setShadowStrength(0);
+        d.setInterpolationDuration(0);
+        d.setTeleportDuration(0);
         Transformation transformation = new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf().identity(),
                 new Vector3f(scale, scale, scale),
                 new Quaternionf().identity()
         );
+        transformation.getLeftRotation().rotateZ((float) Math.toRadians(135.0));
+        d.setTransformation(transformation);
+    }
+
+    public void spawn() {
+        World world = target.getWorld();
+        if (world == null) return;
+        swordItem = new ItemStack(Material.NETHERITE_SWORD);
+        ItemMeta meta = swordItem.getItemMeta();
+        if (meta != null) {
+            meta.setDisplayName("§f§l天剑降临");
+            swordItem.setItemMeta(meta);
+        }
+        display = (ItemDisplay) world.spawnEntity(positionAtY(y), EntityType.ITEM_DISPLAY);
+        configureDisplay(display, swordItem, 1f);
+    }
+
+    private void transform(float scale) {
+        currentScale = scale;
+        if (display == null) return;
+        Transformation transformation = new Transformation(
+                new Vector3f(0f, 0f, 0f), new Quaternionf().identity(),
+                new Vector3f(scale, scale, scale), new Quaternionf().identity());
         transformation.getLeftRotation().rotateZ((float) Math.toRadians(135.0));
         display.setTransformation(transformation);
     }
@@ -86,34 +98,46 @@ public final class SwordProjectile {
         return true;
     }
 
-    /** Locks the actual sword ItemDisplay at the impact point. */
+    /** At impact the falling display is replaced by a dedicated persistent sword display. */
     public void land() {
         y = target.getY() + 0.8;
         landedLocation = positionAtY(y);
-        if (display != null && !display.isDead()) {
-            display.setTeleportDuration(0);
-            display.teleport(landedLocation);
-        }
+        World world = target.getWorld();
+        if (world == null) return;
+
+        if (landedDisplay != null && !landedDisplay.isDead()) return;
+        landedDisplay = (ItemDisplay) world.spawnEntity(landedLocation, EntityType.ITEM_DISPLAY);
+        configureDisplay(landedDisplay, swordItem == null ? new ItemStack(Material.NETHERITE_SWORD) : swordItem, currentScale);
+
+        // Remove only the falling instance. The landed sword is now the persistent sword body.
+        if (display != null && !display.isDead()) display.remove();
+        display = null;
     }
 
-    /** Reasserts the physical sword entity position while lingering. */
     public void keepLanded() {
-        if (display != null && !display.isDead() && landedLocation != null) {
-            display.teleport(landedLocation);
+        if (landedDisplay != null && !landedDisplay.isDead() && landedLocation != null) {
+            landedDisplay.teleport(landedLocation);
         }
     }
 
     public Location location() {
-        return landedLocation != null ? landedLocation.clone() : (display != null ? display.getLocation() : positionAtY(y));
+        if (landedLocation != null) return landedLocation.clone();
+        if (display != null && !display.isDead()) return display.getLocation();
+        return positionAtY(y);
     }
 
     public double velocity() { return velocity; }
 
-    public boolean exists() { return display != null && !display.isDead(); }
+    public boolean exists() {
+        if (landedDisplay != null && !landedDisplay.isDead()) return true;
+        return display != null && !display.isDead();
+    }
 
     public void remove() {
         if (display != null && !display.isDead()) display.remove();
+        if (landedDisplay != null && !landedDisplay.isDead()) landedDisplay.remove();
         display = null;
+        landedDisplay = null;
         landedLocation = null;
     }
 }
