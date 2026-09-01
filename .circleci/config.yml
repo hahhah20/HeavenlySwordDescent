@@ -1,0 +1,29 @@
+version: 2.1
+jobs:
+  build:
+    docker:
+      - image: cimg/openjdk:21.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - maven-v1-{{ checksum "pom.xml" }}
+            - maven-v1-
+      - run:
+          name: Maven compile and package
+          command: mvn -B -ntp clean package
+      - run:
+          name: Verify plugin artifact
+          command: |
+            test -f target/HeavenlySwordDescent-2.1.0.jar
+            jar tf target/HeavenlySwordDescent-2.1.0.jar | grep -q 'plugin.yml'
+      - save_cache:
+          key: maven-v1-{{ checksum "pom.xml" }}
+          paths:
+            - ~/.m2
+      - store_artifacts:
+          path: target/HeavenlySwordDescent-2.1.0.jar
+workflows:
+  build-and-test:
+    jobs:
+      - build
