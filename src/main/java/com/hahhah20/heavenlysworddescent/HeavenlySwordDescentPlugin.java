@@ -13,7 +13,7 @@ public final class HeavenlySwordDescentPlugin extends JavaPlugin {
         cooldownManager = new CooldownManager();
         skillManager = new SkillManager(this);
         if (getCommand("heavenlysword") != null) getCommand("heavenlysword").setExecutor(new HeavenlySwordCommand(skillManager));
-        getLogger().info("HeavenlySwordDescent V2.1.0 enabled.");
+        getLogger().info("HeavenlySwordDescent V2.1.4 enabled.");
     }
     @Override public void onDisable() { if (skillManager != null) skillManager.shutdown(); }
     public CooldownManager getCooldownManager() { return cooldownManager; }
