@@ -5,6 +5,7 @@ public enum SwordState {
     CHARGING,
     FALLING,
     IMPACT,
+    LANDED,
     LINGERING,
     CLEANUP
 }
