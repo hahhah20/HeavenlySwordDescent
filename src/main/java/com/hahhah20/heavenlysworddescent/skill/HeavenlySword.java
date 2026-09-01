@@ -23,10 +23,10 @@ public final class HeavenlySword {
     private boolean finished;
     private BukkitRunnable task;
 
-    public HeavenlySword(HeavenlySwordDescentPlugin p, Player c, Runnable d) {
-        p = p;
-        caster = c;
-        done = d;
+    public HeavenlySword(HeavenlySwordDescentPlugin plugin, Player c, Runnable d) {
+        this.p = plugin;
+        this.caster = c;
+        this.done = d;
     }
 
     public void start() {
@@ -90,16 +90,12 @@ public final class HeavenlySword {
 
     private void linger() {
         if (!sword.exists()) { finish(); return; }
-
-        // The actual ItemDisplay entity is deliberately kept alive and locked at impact.
         sword.keepLanded();
         lingerTick++;
-
         int interval = Math.max(1, p.getConfig().getInt("skill.linger.damage-interval-ticks", 10));
         if (lingerTick % interval == 0) {
             DamageManager.lingeringDamage(p, caster, sword.location());
         }
-
         int durationTicks = Math.max(1, (int) Math.round(
                 p.getConfig().getDouble("skill.linger.seconds", 4.0) * 20.0));
         if (lingerTick >= durationTicks) finish();
