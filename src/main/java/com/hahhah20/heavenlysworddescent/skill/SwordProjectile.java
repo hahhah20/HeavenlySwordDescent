@@ -6,6 +6,7 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.ItemDisplayContext;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -15,12 +16,12 @@ public final class SwordProjectile {
     private final HeavenlySwordDescentPlugin plugin;
     private final Location target;
     private ItemDisplay display;
-    private ItemDisplay landedDisplay;
     private ItemStack swordItem;
     private double y;
     private double velocity;
     private Location landedLocation;
     private float currentScale = 1f;
+    private boolean landed;
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
@@ -43,12 +44,17 @@ public final class SwordProjectile {
         d.setShadowStrength(0);
         d.setInterpolationDuration(0);
         d.setTeleportDuration(0);
+        setTransform(d, scale);
+    }
+
+    private void setTransform(ItemDisplay d, float scale) {
         Transformation transformation = new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf().identity(),
                 new Vector3f(scale, scale, scale),
                 new Quaternionf().identity()
         );
+        // Keep the tested V2.1.3/V2.1.7 sword orientation.
         transformation.getLeftRotation().rotateZ((float) Math.toRadians(135.0));
         d.setTransformation(transformation);
     }
@@ -68,12 +74,8 @@ public final class SwordProjectile {
 
     private void transform(float scale) {
         currentScale = scale;
-        if (display == null) return;
-        Transformation transformation = new Transformation(
-                new Vector3f(0f, 0f, 0f), new Quaternionf().identity(),
-                new Vector3f(scale, scale, scale), new Quaternionf().identity());
-        transformation.getLeftRotation().rotateZ((float) Math.toRadians(135.0));
-        display.setTransformation(transformation);
+        if (display == null || display.isDead() || landed) return;
+        setTransform(display, scale);
     }
 
     public void charge(float progress) {
@@ -82,11 +84,13 @@ public final class SwordProjectile {
 
     public void beginFall() {
         velocity = plugin.getConfig().getDouble("skill.fall-speed");
+        landed = false;
         landedLocation = null;
     }
 
     public boolean tickFall() {
         if (display == null || display.isDead()) return false;
+        if (landed) return false;
         velocity = Math.min(plugin.getConfig().getDouble("skill.max-fall-speed"),
                 velocity + plugin.getConfig().getDouble("skill.fall-acceleration"));
         y -= velocity;
@@ -98,26 +102,28 @@ public final class SwordProjectile {
         return true;
     }
 
-    /** At impact the falling display is replaced by a dedicated persistent sword display. */
+    /**
+     * Impact is deliberately non-destructive: the SAME ItemDisplay becomes the
+     * persistent sword body. No second display is spawned and no display is
+     * removed here.
+     */
     public void land() {
+        if (display == null || display.isDead()) return;
         y = target.getY() + 0.8;
         landedLocation = positionAtY(y);
-        World world = target.getWorld();
-        if (world == null) return;
+        landed = true;
+        velocity = 0.0;
 
-        if (landedDisplay != null && !landedDisplay.isDead()) return;
-        landedDisplay = (ItemDisplay) world.spawnEntity(landedLocation, EntityType.ITEM_DISPLAY);
-        configureDisplay(landedDisplay, swordItem == null ? new ItemStack(Material.NETHERITE_SWORD) : swordItem, currentScale);
-
-        // Remove only the falling instance. The landed sword is now the persistent sword body.
-        if (display != null && !display.isDead()) display.remove();
-        display = null;
+        display.setInterpolationDuration(0);
+        display.setTeleportDuration(0);
+        setTransform(display, currentScale);
+        display.teleport(landedLocation);
     }
 
+    /** Keep the ORIGINAL ItemDisplay alive and exactly at the impact point. */
     public void keepLanded() {
-        if (landedDisplay != null && !landedDisplay.isDead() && landedLocation != null) {
-            landedDisplay.teleport(landedLocation);
-        }
+        if (!landed || display == null || display.isDead() || landedLocation == null) return;
+        display.teleport(landedLocation);
     }
 
     public Location location() {
@@ -129,15 +135,15 @@ public final class SwordProjectile {
     public double velocity() { return velocity; }
 
     public boolean exists() {
-        if (landedDisplay != null && !landedDisplay.isDead()) return true;
         return display != null && !display.isDead();
     }
 
+    public boolean isLanded() { return landed; }
+
     public void remove() {
         if (display != null && !display.isDead()) display.remove();
-        if (landedDisplay != null && !landedDisplay.isDead()) landedDisplay.remove();
         display = null;
-        landedDisplay = null;
         landedLocation = null;
+        landed = false;
     }
 }
