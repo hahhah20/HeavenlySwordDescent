@@ -51,16 +51,22 @@ public final class SwordProjectile {
     }
 
     /**
-     * ItemDisplay uses the item's model orientation. Rotate around the local X axis
-     * and keep that rotation identical during charging and falling so the sword tip
-     * stays pointed toward the ground instead of following the camera/billboard.
+     * Model Transformation (MT): the vanilla sword model's blade axis is the
+     * local Y axis. A 180-degree local-X rotation flips that axis so the blade
+     * points downward. The pose is deliberately kept independent from the
+     * entity's world yaw/pitch and from the camera.
      */
     private void transform(float scale) {
         if (display == null) return;
+
         Transformation transformation = display.getTransformation();
+        transformation.getTranslation().set(0f, 0f, 0f);
+        transformation.getLeftRotation().set(
+                new Quaternionf()
+                        .rotateX((float) Math.PI)
+        );
+        transformation.getRightRotation().identity();
         transformation.getScale().set(scale, scale, scale * 1.25f);
-        transformation.getLeftRotation().set(new Quaternionf().identity().rotateX((float) Math.PI));
-        transformation.getRightRotation().set(new Quaternionf().identity());
         display.setTransformation(transformation);
     }
 
