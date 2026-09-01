@@ -16,7 +16,7 @@ public final class HeavenlySwordDescentPlugin extends JavaPlugin {
         if (getCommand("heavenlysword") != null) {
             getCommand("heavenlysword").setExecutor(new HeavenlySwordCommand(skillManager));
         }
-        getLogger().info("HeavenlySwordDescent V2.1.6 enabled.");
+        getLogger().info("HeavenlySwordDescent V2.1.8 enabled.");
     }
 
     @Override public void onDisable() {
