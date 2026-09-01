@@ -6,7 +6,6 @@ import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.inventory.ItemStack;
-import org.bukkit.inventory.ItemDisplayContext;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
 import org.joml.Quaternionf;
@@ -44,6 +43,8 @@ public final class SwordProjectile {
         d.setShadowStrength(0);
         d.setInterpolationDuration(0);
         d.setTeleportDuration(0);
+        d.setPersistent(true);
+        d.setInvulnerable(true);
         setTransform(d, scale);
     }
 
@@ -102,20 +103,23 @@ public final class SwordProjectile {
         return true;
     }
 
-    /**
-     * Impact is deliberately non-destructive: the SAME ItemDisplay becomes the
-     * persistent sword body. No second display is spawned and no display is
-     * removed here.
-     */
+    /** Keep the SAME ItemDisplay as the visible sword body after impact. */
     public void land() {
         if (display == null || display.isDead()) return;
-        y = target.getY() + 0.8;
-        landedLocation = positionAtY(y);
-        landed = true;
         velocity = 0.0;
+        landed = true;
+
+        // The sword is scaled up during charging. A center of +0.8 puts much of
+        // the scaled ItemDisplay below the ground, making it look as if it vanished.
+        // Lift the display so the actual sword body remains visibly above the block.
+        double visibleGroundOffset = Math.max(1.5, currentScale * 0.5);
+        y = target.getY() + visibleGroundOffset;
+        landedLocation = positionAtY(y);
 
         display.setInterpolationDuration(0);
         display.setTeleportDuration(0);
+        display.setPersistent(true);
+        display.setInvulnerable(true);
         setTransform(display, currentScale);
         display.teleport(landedLocation);
     }
