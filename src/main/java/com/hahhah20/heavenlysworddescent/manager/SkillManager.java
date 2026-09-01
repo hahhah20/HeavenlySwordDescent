@@ -24,7 +24,7 @@ public final class SkillManager {
     public void cast(Player player) {
         UUID id = player.getUniqueId();
         if (casting.contains(id)) {
-            showActionBar(player, "§e⚔ 天剑降临 §f释放中...");
+            notifyPlayer(player, "§e⚔ 天剑降临 §f释放中...");
             return;
         }
         if (plugin.getCooldownManager().active(id)) {
@@ -34,11 +34,12 @@ public final class SkillManager {
 
         casting.add(id);
         plugin.getCooldownManager().set(id, plugin.getConfig().getLong("skill.cooldown-seconds") * 1000L);
-        showActionBar(player, "§b⚔ 天剑降临 §f释放中...");
+        notifyPlayer(player, "§b⚔ 天剑降临 §f释放中...");
         new HeavenlySword(plugin, player, () -> casting.remove(id)).start();
     }
 
     private void updateActionBars() {
+        if (!plugin.getConfig().getBoolean("skill.display.actionbar", true)) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID id = player.getUniqueId();
             if (casting.contains(id)) {
@@ -50,8 +51,18 @@ public final class SkillManager {
     }
 
     private void showCooldown(Player player) {
+        if (!plugin.getConfig().getBoolean("skill.display.actionbar", true)) return;
         double seconds = plugin.getCooldownManager().remaining(player.getUniqueId()) / 1000.0;
         showActionBar(player, String.format("§6⚔ 天剑降临 §f冷却：%.1fs", seconds));
+    }
+
+    private void notifyPlayer(Player player, String message) {
+        if (plugin.getConfig().getBoolean("skill.display.actionbar", true)) {
+            showActionBar(player, message);
+        }
+        if (plugin.getConfig().getBoolean("skill.display.chat-message", false)) {
+            player.sendMessage(message);
+        }
     }
 
     private void showActionBar(Player player, String message) {
