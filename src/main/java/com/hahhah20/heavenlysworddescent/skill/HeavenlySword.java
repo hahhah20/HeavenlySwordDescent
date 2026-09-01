@@ -8,9 +8,8 @@ import com.hahhah20.heavenlysworddescent.effect.SwordTrail;
 import com.hahhah20.heavenlysworddescent.effect.WarningEffect;
 import org.bukkit.Location;
 import org.bukkit.Sound;
-import org.bukkit.scheduler.BukkitRunnable;
-
 import org.bukkit.entity.Player;
+import org.bukkit.scheduler.BukkitRunnable;
 
 public final class HeavenlySword {
     private final HeavenlySwordDescentPlugin p;
@@ -32,14 +31,11 @@ public final class HeavenlySword {
 
     public void start() {
         var block = caster.getTargetBlockExact(p.getConfig().getInt("skill.target-range"));
-        if (block != null) {
-            target = block.getLocation().add(.5, 1, .5);
-        } else {
+        if (block != null) target = block.getLocation().add(.5, 1, .5);
+        else {
             target = caster.getLocation().clone().add(caster.getLocation().getDirection().normalize().multiply(15));
             target.setY(caster.getLocation().getY());
         }
-        p.getLogger().info("天剑降临目标: " + target);
-
         sword = new SwordProjectile(p, target);
         sword.spawn();
         state = SwordState.CHARGING;
@@ -48,10 +44,9 @@ public final class HeavenlySword {
             @Override public void run() {
                 if (finished) { cancel(); return; }
                 if (!caster.isOnline()) { finish(); cancel(); return; }
-                tick++;
                 try {
-                    if (state == SwordState.CHARGING) charge();
-                    else if (state == SwordState.FALLING) fall();
+                    if (state == SwordState.CHARGING) { tick++; charge(); }
+                    else if (state == SwordState.FALLING) { tick++; fall(); }
                     else if (state == SwordState.LINGERING) linger();
                 } catch (Throwable error) {
                     p.getLogger().severe("天剑降临异常: " + error.getMessage());
@@ -82,10 +77,10 @@ public final class HeavenlySword {
         if (!alive) {
             state = SwordState.IMPACT;
             try {
+                // Initial impact happens exactly once.
                 ImpactEffect.execute(p, caster, target);
                 sword.land();
                 lingerTick = 0;
-                tick = 0;
                 state = SwordState.LINGERING;
             } catch (Throwable error) {
                 p.getLogger().severe("天剑降临命中处理异常: " + error.getMessage());
@@ -95,17 +90,19 @@ public final class HeavenlySword {
     }
 
     private void linger() {
+        // The sword remains physically present at the impact point for the full linger duration.
+        if (sword == null) { finish(); return; }
+        sword.land();
+
         lingerTick++;
         int interval = Math.max(1, p.getConfig().getInt("skill.linger.damage-interval-ticks", 10));
         if (lingerTick % interval == 0) {
-            DamageManager.lingeringDamage(p, caster, target);
+            DamageManager.lingeringDamage(p, caster, sword.location());
         }
 
-        if (lingerTick >= Math.max(1, (int) Math.round(
-                p.getConfig().getDouble("skill.linger.seconds", 4.0) * 20.0))) {
-            state = SwordState.CLEANUP;
-            finish();
-        }
+        int durationTicks = Math.max(1, (int) Math.round(
+                p.getConfig().getDouble("skill.linger.seconds", 4.0) * 20.0));
+        if (lingerTick >= durationTicks) finish();
     }
 
     private void finish() {
@@ -115,7 +112,6 @@ public final class HeavenlySword {
         try {
             if (sword != null) sword.remove();
         } finally {
-            p.getLogger().info("天剑降临技能清理完成");
             done.run();
         }
     }
