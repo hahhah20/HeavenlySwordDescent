@@ -24,9 +24,9 @@ public final class HeavenlySword {
     private BukkitRunnable task;
 
     public HeavenlySword(HeavenlySwordDescentPlugin plugin, Player c, Runnable d) {
-        this.p = plugin;
-        this.caster = c;
-        this.done = d;
+        p = plugin;
+        caster = c;
+        done = d;
     }
 
     public void start() {
@@ -49,9 +49,16 @@ public final class HeavenlySword {
                     else if (state == SwordState.FALLING) { tick++; fall(); }
                     else if (state == SwordState.LINGERING) linger();
                 } catch (Throwable error) {
-                    p.getLogger().severe("天剑降临异常: " + error.getMessage());
-                    finish();
-                    cancel();
+                    p.getLogger().severe("天剑降临异常: " + error.getClass().getSimpleName() + ": " + error.getMessage());
+                    // Do not destroy a sword that has already landed. Let the visible
+                    // sword remain for the configured linger duration even if an
+                    // optional effect/damage component throws an exception.
+                    if (sword != null && sword.isLanded()) {
+                        try { sword.keepLanded(); } catch (Throwable ignored) {}
+                    } else {
+                        finish();
+                        cancel();
+                    }
                 }
             }
         };
@@ -76,14 +83,15 @@ public final class HeavenlySword {
         boolean alive = sword.tickFall();
         SwordTrail.tick(sword.location(), sword.velocity());
         if (!alive && sword.isLanded()) {
-            try {
-                ImpactEffect.execute(p, caster, target);
-                lingerTick = 0;
-                state = SwordState.LINGERING;
-            } catch (Throwable error) {
-                p.getLogger().severe("天剑降临命中处理异常: " + error.getMessage());
-                finish();
+            // The sword is already landed and visible. Impact effects are secondary
+            // and must never be allowed to remove the sword body.
+            try { ImpactEffect.execute(p, caster, target); }
+            catch (Throwable error) {
+                p.getLogger().warning("天剑命中效果异常（不影响剑本体驻留）: " + error.getMessage());
             }
+            lingerTick = 0;
+            state = SwordState.LINGERING;
+            p.getLogger().info("[Sword] LANDED -> LINGERING");
         }
     }
 
@@ -93,10 +101,12 @@ public final class HeavenlySword {
         lingerTick++;
         int interval = Math.max(1, p.getConfig().getInt("skill.linger.damage-interval-ticks", 10));
         if (lingerTick % interval == 0) {
-            DamageManager.lingeringDamage(p, caster, sword.location());
+            try { DamageManager.lingeringDamage(p, caster, sword.location()); }
+            catch (Throwable error) {
+                p.getLogger().warning("天剑持续伤害异常（不影响剑本体驻留）: " + error.getMessage());
+            }
         }
-        int durationTicks = Math.max(1, (int) Math.round(
-                p.getConfig().getDouble("skill.linger.seconds", 4.0) * 20.0));
+        int durationTicks = Math.max(1, (int) Math.round(p.getConfig().getDouble("skill.linger.seconds", 4.0) * 20.0));
         if (lingerTick >= durationTicks) finish();
     }
 
