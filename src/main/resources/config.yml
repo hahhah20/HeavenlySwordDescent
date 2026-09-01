@@ -19,6 +19,10 @@ skill:
     knockback: 2.2
     vertical-knockback: 0.55
   damage-caster: false
+  linger:
+    seconds: 4.0
+    damage-interval-ticks: 10
+    damage-multiplier: 0.10
   display:
     actionbar: true
     chat-message: false
