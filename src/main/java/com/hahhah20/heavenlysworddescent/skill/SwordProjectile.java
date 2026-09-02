@@ -22,6 +22,12 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
+    // The sword model rotation is fixed once and is deliberately independent
+    // of the player's look direction. Pitch/Yaw are used only to calculate the
+    // target location; they must never be fed back into the ItemDisplay pose.
+    private final Quaternionf fixedSwordRotation = new Quaternionf()
+            .rotateZ((float) Math.toRadians(135.0));
+
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
         this.target = target.clone();
@@ -49,14 +55,14 @@ public final class SwordProjectile {
     }
 
     private void setTransform(ItemDisplay d, float scale) {
+        // Rebuild only the scale/translation values. The rotation is copied
+        // from one fixed quaternion so player Pitch/Yaw can never skew it.
         Transformation transformation = new Transformation(
                 new Vector3f(0f, 0f, 0f),
-                new Quaternionf().identity(),
+                new Quaternionf(fixedSwordRotation),
                 new Vector3f(scale, scale, scale),
                 new Quaternionf().identity()
         );
-        // Keep the tested V2.1.3/V2.1.7 sword orientation.
-        transformation.getLeftRotation().rotateZ((float) Math.toRadians(135.0));
         d.setTransformation(transformation);
     }
 
@@ -87,6 +93,9 @@ public final class SwordProjectile {
         velocity = plugin.getConfig().getDouble("skill.fall-speed");
         landed = false;
         landedLocation = null;
+        // Re-apply the same fixed rotation without deriving anything from the
+        // player's current view. This is intentionally identical to spawn().
+        if (display != null && !display.isDead()) setTransform(display, currentScale);
     }
 
     public boolean tickFall() {
@@ -99,6 +108,8 @@ public final class SwordProjectile {
             land();
             return false;
         }
+        // During flight only the entity position changes. Rotation is never
+        // recalculated from the player's view.
         display.teleport(positionAtY(y));
         return true;
     }
@@ -109,9 +120,6 @@ public final class SwordProjectile {
         velocity = 0.0;
         landed = true;
 
-        // The sword is scaled up during charging. A center of +0.8 puts much of
-        // the scaled ItemDisplay below the ground, making it look as if it vanished.
-        // Lift the display so the actual sword body remains visibly above the block.
         double visibleGroundOffset = Math.max(1.5, currentScale * 0.5);
         y = target.getY() + visibleGroundOffset;
         landedLocation = positionAtY(y);
@@ -120,6 +128,7 @@ public final class SwordProjectile {
         display.setTeleportDuration(0);
         display.setPersistent(true);
         display.setInvulnerable(true);
+        // Keep exactly the same fixed model pose used during release/fall.
         setTransform(display, currentScale);
         display.teleport(landedLocation);
     }
