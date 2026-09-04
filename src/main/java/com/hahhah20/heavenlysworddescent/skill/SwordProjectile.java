@@ -22,13 +22,12 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // Vanilla sword texture/model is diagonal in the raw item display plane.
-    // A fixed +45 degree Z rotation makes the blade vertical with the tip down.
-    // IMPORTANT: the entity's own yaw/pitch must also be zero; otherwise a
-    // fallback target created from the player's Location would tilt the model
-    // when the player looks up/down.
+    // Vanilla handheld sword model is diagonal in the raw item display plane.
+    // The verified V2.1.3/V2.1.8 model correction was +135 degrees around Z.
+    // Keep that model correction, but fully decouple the ItemDisplay entity
+    // yaw/pitch from the caster so looking up/down cannot tilt the whole sword.
     private final Quaternionf fixedSwordRotation = new Quaternionf()
-            .rotateZ((float) Math.toRadians(45.0));
+            .rotateZ((float) Math.toRadians(135.0));
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
@@ -41,7 +40,6 @@ public final class SwordProjectile {
     private Location positionAtY(double height) {
         Location location = target.clone();
         location.setY(height);
-        // Never inherit the caster's camera orientation into the ItemDisplay.
         location.setYaw(0f);
         location.setPitch(0f);
         return location;
@@ -70,7 +68,6 @@ public final class SwordProjectile {
                 new Quaternionf().identity()
         );
         d.setTransformation(transformation);
-        // Keep entity rotation independent from player/caster rotation too.
         d.setRotation(0f, 0f);
     }
 
