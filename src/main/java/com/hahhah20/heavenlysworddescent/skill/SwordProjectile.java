@@ -22,22 +22,28 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // The raw sword model is already aligned to the vertical model axis.
-    // Only flip it 180 degrees around X so the blade points downward.
-    // Do NOT rotate around Z: a Z rotation is exactly what makes the sword
-    // appear diagonally/crooked when viewed from different directions.
+    // Vanilla sword texture/model is diagonal in the raw item display plane.
+    // A fixed +45 degree Z rotation makes the blade vertical with the tip down.
+    // IMPORTANT: the entity's own yaw/pitch must also be zero; otherwise a
+    // fallback target created from the player's Location would tilt the model
+    // when the player looks up/down.
     private final Quaternionf fixedSwordRotation = new Quaternionf()
-            .rotateX((float) Math.PI);
+            .rotateZ((float) Math.toRadians(45.0));
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
         this.target = target.clone();
+        this.target.setYaw(0f);
+        this.target.setPitch(0f);
         this.y = target.getY() + plugin.getConfig().getDouble("skill.sword-height");
     }
 
     private Location positionAtY(double height) {
         Location location = target.clone();
         location.setY(height);
+        // Never inherit the caster's camera orientation into the ItemDisplay.
+        location.setYaw(0f);
+        location.setPitch(0f);
         return location;
     }
 
@@ -52,6 +58,7 @@ public final class SwordProjectile {
         d.setTeleportDuration(0);
         d.setPersistent(true);
         d.setInvulnerable(true);
+        d.setRotation(0f, 0f);
         setTransform(d, scale);
     }
 
@@ -63,6 +70,8 @@ public final class SwordProjectile {
                 new Quaternionf().identity()
         );
         d.setTransformation(transformation);
+        // Keep entity rotation independent from player/caster rotation too.
+        d.setRotation(0f, 0f);
     }
 
     public void spawn() {
@@ -106,6 +115,7 @@ public final class SwordProjectile {
             return false;
         }
         display.teleport(positionAtY(y));
+        display.setRotation(0f, 0f);
         return true;
     }
 
@@ -122,11 +132,13 @@ public final class SwordProjectile {
         display.setInvulnerable(true);
         setTransform(display, currentScale);
         display.teleport(landedLocation);
+        display.setRotation(0f, 0f);
     }
 
     public void keepLanded() {
         if (!landed || display == null || display.isDead() || landedLocation == null) return;
         display.teleport(landedLocation);
+        display.setRotation(0f, 0f);
     }
 
     public Location location() {
