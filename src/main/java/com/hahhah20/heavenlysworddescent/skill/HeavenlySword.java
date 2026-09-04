@@ -37,9 +37,11 @@ public final class HeavenlySword {
             target = caster.getLocation().clone().add(caster.getLocation().getDirection().normalize().multiply(15));
             target.setY(caster.getLocation().getY());
         }
-        // Target position may come from caster.getLocation(), but SwordProjectile
-        // explicitly strips yaw/pitch so camera direction can never rotate the sword.
-        sword = new SwordProjectile(p, target);
+        // The sword model must never inherit the caster camera rotation.  Its
+        // ItemDisplay yaw is calculated from the sword toward the caster so
+        // the sword face always turns toward the player, regardless of which
+        // direction the skill was released.
+        sword = new SwordProjectile(p, target, caster);
         sword.spawn();
         state = SwordState.CHARGING;
 
