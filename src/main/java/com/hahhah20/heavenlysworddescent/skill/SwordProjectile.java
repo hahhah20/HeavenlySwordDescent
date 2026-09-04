@@ -25,14 +25,10 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // V2.1.14's proven core correction is restored here: X90 + Z45.
-    // The later -135° variant produced a horizontal/cross-like sword in the
-    // latest real-server video. Keep the two rotations independent so the
-    // vanilla sword model is corrected before the horizontal facing is set.
-    private final Quaternionf swordLeftRotation = new Quaternionf()
-            .rotateX((float) Math.toRadians(90.0));
-    private final Quaternionf swordRightRotation = new Quaternionf()
-            .rotateZ((float) Math.toRadians(45.0));
+    // V2.1.20 is based directly on the V2.1.14 sword-body orientation.
+    // Do NOT change this model correction: only the horizontal facing is added.
+    private final Quaternionf fixedSwordRotation = new Quaternionf()
+            .rotateZ((float) Math.toRadians(135.0));
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target, Player facingPlayer) {
         this.plugin = plugin;
@@ -52,10 +48,10 @@ public final class SwordProjectile {
     }
 
     /**
-     * Horizontal yaw from the sword to the caster. Pitch is deliberately
-     * ignored so looking up/down never tilts the sword. The display therefore
-     * remains vertical with its tip down while its face turns toward the
-     * player from every horizontal release direction.
+     * The ONLY new orientation behavior in V2.1.20:
+     * rotate the already-correct V2.1.14 sword body horizontally so its face
+     * points at the player who released the skill. Y is ignored completely,
+     * so player pitch can never tilt the sword.
      */
     private float facingYaw() {
         if (facingPlayer == null || !facingPlayer.isOnline()) return 0f;
@@ -84,15 +80,14 @@ public final class SwordProjectile {
         d.setPersistent(true);
         d.setInvulnerable(true);
         setTransform(d, scale);
-        facePlayer();
     }
 
     private void setTransform(ItemDisplay d, float scale) {
         Transformation transformation = new Transformation(
                 new Vector3f(0f, 0f, 0f),
-                new Quaternionf(swordLeftRotation),
+                new Quaternionf(fixedSwordRotation),
                 new Vector3f(scale, scale, scale),
-                new Quaternionf(swordRightRotation)
+                new Quaternionf().identity()
         );
         d.setTransformation(transformation);
         facePlayer();
