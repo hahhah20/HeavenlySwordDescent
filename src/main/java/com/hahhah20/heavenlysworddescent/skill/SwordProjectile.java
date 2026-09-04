@@ -5,15 +5,18 @@ import org.bukkit.*;
 import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemDisplay;
+import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.util.Transformation;
+import org.bukkit.util.Vector;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 public final class SwordProjectile {
     private final HeavenlySwordDescentPlugin plugin;
     private final Location target;
+    private final Player facingPlayer;
     private ItemDisplay display;
     private ItemStack swordItem;
     private double y;
@@ -22,20 +25,21 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // Use the two-stage ItemDisplay transform used for upright sword displays:
-    // first rotate the display plane 90 degrees around X, then correct the
-    // vanilla handheld sword's diagonal model with -135 degrees around Z.
-    // This avoids relying on a single Z rotation, which produced reversed or
-    // unstable-looking sword orientation in the previous builds.
-    private final Quaternionf fixedSwordRotation = new Quaternionf()
-            .rotateX((float) Math.toRadians(90.0))
-            .rotateZ((float) Math.toRadians(-135.0));
+    // Keep the display upright, then use the model correction that flips the
+    // vanilla handheld sword so its tip points DOWN. The two rotations are
+    // kept as separate ItemDisplay left/right rotations because ItemDisplay
+    // applies them on opposite sides of the model transform.
+    private final Quaternionf swordLeftRotation = new Quaternionf()
+            .rotateX((float) Math.toRadians(90.0));
+    private final Quaternionf swordRightRotation = new Quaternionf()
+            .rotateZ((float) Math.toRadians(45.0));
 
-    public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
+    public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target, Player facingPlayer) {
         this.plugin = plugin;
         this.target = target.clone();
         this.target.setYaw(0f);
         this.target.setPitch(0f);
+        this.facingPlayer = facingPlayer;
         this.y = target.getY() + plugin.getConfig().getDouble("skill.sword-height");
     }
 
@@ -45,6 +49,21 @@ public final class SwordProjectile {
         location.setYaw(0f);
         location.setPitch(0f);
         return location;
+    }
+
+    private float facingYaw() {
+        if (facingPlayer == null || !facingPlayer.isOnline()) return 0f;
+        Location swordLocation = landedLocation != null ? landedLocation : positionAtY(y);
+        Vector direction = facingPlayer.getLocation().toVector().subtract(swordLocation.toVector());
+        direction.setY(0.0);
+        if (direction.lengthSquared() < 1.0E-6) return 0f;
+        return (float) Math.toDegrees(Math.atan2(-direction.getX(), direction.getZ()));
+    }
+
+    private void facePlayer() {
+        if (display != null && !display.isDead()) {
+            display.setRotation(facingYaw(), 0f);
+        }
     }
 
     private void configureDisplay(ItemDisplay d, ItemStack item, float scale) {
@@ -58,19 +77,19 @@ public final class SwordProjectile {
         d.setTeleportDuration(0);
         d.setPersistent(true);
         d.setInvulnerable(true);
-        d.setRotation(0f, 0f);
         setTransform(d, scale);
+        facePlayer();
     }
 
     private void setTransform(ItemDisplay d, float scale) {
         Transformation transformation = new Transformation(
                 new Vector3f(0f, 0f, 0f),
-                new Quaternionf(fixedSwordRotation),
+                new Quaternionf(swordLeftRotation),
                 new Vector3f(scale, scale, scale),
-                new Quaternionf().identity()
+                new Quaternionf(swordRightRotation)
         );
         d.setTransformation(transformation);
-        d.setRotation(0f, 0f);
+        facePlayer();
     }
 
     public void spawn() {
@@ -114,7 +133,7 @@ public final class SwordProjectile {
             return false;
         }
         display.teleport(positionAtY(y));
-        display.setRotation(0f, 0f);
+        facePlayer();
         return true;
     }
 
@@ -131,13 +150,13 @@ public final class SwordProjectile {
         display.setInvulnerable(true);
         setTransform(display, currentScale);
         display.teleport(landedLocation);
-        display.setRotation(0f, 0f);
+        facePlayer();
     }
 
     public void keepLanded() {
         if (!landed || display == null || display.isDead() || landedLocation == null) return;
         display.teleport(landedLocation);
-        display.setRotation(0f, 0f);
+        facePlayer();
     }
 
     public Location location() {
