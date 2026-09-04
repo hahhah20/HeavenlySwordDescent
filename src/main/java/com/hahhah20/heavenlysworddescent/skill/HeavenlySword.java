@@ -20,6 +20,7 @@ public final class HeavenlySword {
     private SwordState state;
     private int tick;
     private int lingerTick;
+    private long lingerEndNanos;
     private boolean finished;
     private BukkitRunnable task;
 
@@ -36,6 +37,8 @@ public final class HeavenlySword {
             target = caster.getLocation().clone().add(caster.getLocation().getDirection().normalize().multiply(15));
             target.setY(caster.getLocation().getY());
         }
+        // Target position may come from caster.getLocation(), but SwordProjectile
+        // explicitly strips yaw/pitch so camera direction can never rotate the sword.
         sword = new SwordProjectile(p, target);
         sword.spawn();
         state = SwordState.CHARGING;
@@ -50,9 +53,6 @@ public final class HeavenlySword {
                     else if (state == SwordState.LINGERING) linger();
                 } catch (Throwable error) {
                     p.getLogger().severe("天剑降临异常: " + error.getClass().getSimpleName() + ": " + error.getMessage());
-                    // Do not destroy a sword that has already landed. Let the visible
-                    // sword remain for the configured linger duration even if an
-                    // optional effect/damage component throws an exception.
                     if (sword != null && sword.isLanded()) {
                         try { sword.keepLanded(); } catch (Throwable ignored) {}
                     } else {
@@ -83,20 +83,25 @@ public final class HeavenlySword {
         boolean alive = sword.tickFall();
         SwordTrail.tick(sword.location(), sword.velocity());
         if (!alive && sword.isLanded()) {
-            // The sword is already landed and visible. Impact effects are secondary
-            // and must never be allowed to remove the sword body.
             try { ImpactEffect.execute(p, caster, target); }
             catch (Throwable error) {
                 p.getLogger().warning("天剑命中效果异常（不影响剑本体驻留）: " + error.getMessage());
             }
             lingerTick = 0;
+            double seconds = Math.max(4.0, p.getConfig().getDouble("skill.linger.seconds", 4.0));
+            lingerEndNanos = System.nanoTime() + (long) (seconds * 1_000_000_000L);
             state = SwordState.LINGERING;
-            p.getLogger().info("[Sword] LANDED -> LINGERING");
+            p.getLogger().info("[Sword] LANDED -> LINGERING (" + seconds + "s)");
         }
     }
 
     private void linger() {
-        if (!sword.exists() || !sword.isLanded()) { finish(); return; }
+        if (!sword.exists() || !sword.isLanded()) {
+            // Never allow an early state transition to silently remove a landed sword.
+            // If the display disappeared externally, there is nothing left to preserve.
+            finish();
+            return;
+        }
         sword.keepLanded();
         lingerTick++;
         int interval = Math.max(1, p.getConfig().getInt("skill.linger.damage-interval-ticks", 10));
@@ -106,8 +111,9 @@ public final class HeavenlySword {
                 p.getLogger().warning("天剑持续伤害异常（不影响剑本体驻留）: " + error.getMessage());
             }
         }
-        int durationTicks = Math.max(1, (int) Math.round(p.getConfig().getDouble("skill.linger.seconds", 4.0) * 20.0));
-        if (lingerTick >= durationTicks) finish();
+        // Wall-clock timing prevents the sword from disappearing before a real
+        // four seconds have elapsed when the server has irregular tick timing.
+        if (System.nanoTime() >= lingerEndNanos) finish();
     }
 
     private void finish() {
