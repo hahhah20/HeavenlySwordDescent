@@ -25,14 +25,14 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // Keep the display upright, then use the model correction that flips the
-    // vanilla handheld sword so its tip points DOWN. The two rotations are
-    // kept as separate ItemDisplay left/right rotations because ItemDisplay
-    // applies them on opposite sides of the model transform.
+    // Start from the 2.1.14 orientation goal: make the vanilla sword upright
+    // and tip-down with separate ItemDisplay left/right rotations. Do not
+    // compose these into one quaternion because ItemDisplay applies the two
+    // rotations on opposite sides of the scale transform.
     private final Quaternionf swordLeftRotation = new Quaternionf()
             .rotateX((float) Math.toRadians(90.0));
     private final Quaternionf swordRightRotation = new Quaternionf()
-            .rotateZ((float) Math.toRadians(45.0));
+            .rotateZ((float) Math.toRadians(-135.0));
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target, Player facingPlayer) {
         this.plugin = plugin;
@@ -51,6 +51,12 @@ public final class SwordProjectile {
         return location;
     }
 
+    /**
+     * Horizontal yaw from the sword to the caster. Pitch is deliberately
+     * ignored so looking up/down never tilts the sword. The display therefore
+     * remains vertical with its tip down while its face turns toward the
+     * player from every horizontal release direction.
+     */
     private float facingYaw() {
         if (facingPlayer == null || !facingPlayer.isOnline()) return 0f;
         Location swordLocation = landedLocation != null ? landedLocation : positionAtY(y);
@@ -78,7 +84,6 @@ public final class SwordProjectile {
         d.setPersistent(true);
         d.setInvulnerable(true);
         setTransform(d, scale);
-        facePlayer();
     }
 
     private void setTransform(ItemDisplay d, float scale) {
@@ -103,6 +108,7 @@ public final class SwordProjectile {
         }
         display = (ItemDisplay) world.spawnEntity(positionAtY(y), EntityType.ITEM_DISPLAY);
         configureDisplay(display, swordItem, 1f);
+        facePlayer();
     }
 
     private void transform(float scale) {
