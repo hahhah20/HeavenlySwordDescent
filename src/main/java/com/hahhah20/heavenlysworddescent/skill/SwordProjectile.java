@@ -22,12 +22,13 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // Vanilla handheld sword model is diagonal in the raw item display plane.
-    // The verified V2.1.3/V2.1.8 model correction was +135 degrees around Z.
-    // Keep that model correction, but fully decouple the ItemDisplay entity
-    // yaw/pitch from the caster so looking up/down cannot tilt the whole sword.
+    // The vanilla handheld sword model is diagonal in the raw ItemDisplay plane.
+    // 135 degrees made the blade vertical but left the tip pointing upward.
+    // Rotate the same axis by another 180 degrees: -45 degrees (315 degrees)
+    // keeps the blade vertical and flips it so the sword tip points downward.
+    // Entity yaw/pitch remains zero so the caster's camera never affects it.
     private final Quaternionf fixedSwordRotation = new Quaternionf()
-            .rotateZ((float) Math.toRadians(135.0));
+            .rotateZ((float) Math.toRadians(-45.0));
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
