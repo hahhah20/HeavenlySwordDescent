@@ -15,14 +15,17 @@ jobs:
       - run:
           name: Verify plugin artifact
           command: |
-            test -f target/HeavenlySwordDescent-2.1.0.jar
-            jar tf target/HeavenlySwordDescent-2.1.0.jar | grep -q 'plugin.yml'
+            VERSION=$(sed -n 's:.*<version>\([^<]*\)</version>.*:\1:p' pom.xml | head -1)
+            test -n "$VERSION"
+            JAR="target/HeavenlySwordDescent-${VERSION}.jar"
+            test -f "$JAR"
+            jar tf "$JAR" | grep -q 'plugin.yml'
       - save_cache:
           key: maven-v1-{{ checksum "pom.xml" }}
           paths:
             - ~/.m2
       - store_artifacts:
-          path: target/HeavenlySwordDescent-2.1.0.jar
+          path: target
 workflows:
   build-and-test:
     jobs:
