@@ -25,14 +25,14 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // Start from the 2.1.14 orientation goal: make the vanilla sword upright
-    // and tip-down with separate ItemDisplay left/right rotations. Do not
-    // compose these into one quaternion because ItemDisplay applies the two
-    // rotations on opposite sides of the scale transform.
+    // V2.1.14's proven core correction is restored here: X90 + Z45.
+    // The later -135° variant produced a horizontal/cross-like sword in the
+    // latest real-server video. Keep the two rotations independent so the
+    // vanilla sword model is corrected before the horizontal facing is set.
     private final Quaternionf swordLeftRotation = new Quaternionf()
             .rotateX((float) Math.toRadians(90.0));
     private final Quaternionf swordRightRotation = new Quaternionf()
-            .rotateZ((float) Math.toRadians(-135.0));
+            .rotateZ((float) Math.toRadians(45.0));
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target, Player facingPlayer) {
         this.plugin = plugin;
@@ -84,6 +84,7 @@ public final class SwordProjectile {
         d.setPersistent(true);
         d.setInvulnerable(true);
         setTransform(d, scale);
+        facePlayer();
     }
 
     private void setTransform(ItemDisplay d, float scale) {
@@ -108,7 +109,6 @@ public final class SwordProjectile {
         }
         display = (ItemDisplay) world.spawnEntity(positionAtY(y), EntityType.ITEM_DISPLAY);
         configureDisplay(display, swordItem, 1f);
-        facePlayer();
     }
 
     private void transform(float scale) {
