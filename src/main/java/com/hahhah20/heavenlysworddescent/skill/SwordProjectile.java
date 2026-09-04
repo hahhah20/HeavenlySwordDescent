@@ -22,11 +22,12 @@ public final class SwordProjectile {
     private float currentScale = 1f;
     private boolean landed;
 
-    // The sword model rotation is fixed once and is deliberately independent
-    // of the player's look direction. Pitch/Yaw are used only to calculate the
-    // target location; they must never be fed back into the ItemDisplay pose.
+    // The raw sword model is already aligned to the vertical model axis.
+    // Only flip it 180 degrees around X so the blade points downward.
+    // Do NOT rotate around Z: a Z rotation is exactly what makes the sword
+    // appear diagonally/crooked when viewed from different directions.
     private final Quaternionf fixedSwordRotation = new Quaternionf()
-            .rotateZ((float) Math.toRadians(135.0));
+            .rotateX((float) Math.PI);
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target) {
         this.plugin = plugin;
@@ -55,8 +56,6 @@ public final class SwordProjectile {
     }
 
     private void setTransform(ItemDisplay d, float scale) {
-        // Rebuild only the scale/translation values. The rotation is copied
-        // from one fixed quaternion so player Pitch/Yaw can never skew it.
         Transformation transformation = new Transformation(
                 new Vector3f(0f, 0f, 0f),
                 new Quaternionf(fixedSwordRotation),
@@ -93,8 +92,6 @@ public final class SwordProjectile {
         velocity = plugin.getConfig().getDouble("skill.fall-speed");
         landed = false;
         landedLocation = null;
-        // Re-apply the same fixed rotation without deriving anything from the
-        // player's current view. This is intentionally identical to spawn().
         if (display != null && !display.isDead()) setTransform(display, currentScale);
     }
 
@@ -108,32 +105,25 @@ public final class SwordProjectile {
             land();
             return false;
         }
-        // During flight only the entity position changes. Rotation is never
-        // recalculated from the player's view.
         display.teleport(positionAtY(y));
         return true;
     }
 
-    /** Keep the SAME ItemDisplay as the visible sword body after impact. */
     public void land() {
         if (display == null || display.isDead()) return;
         velocity = 0.0;
         landed = true;
-
         double visibleGroundOffset = Math.max(1.5, currentScale * 0.5);
         y = target.getY() + visibleGroundOffset;
         landedLocation = positionAtY(y);
-
         display.setInterpolationDuration(0);
         display.setTeleportDuration(0);
         display.setPersistent(true);
         display.setInvulnerable(true);
-        // Keep exactly the same fixed model pose used during release/fall.
         setTransform(display, currentScale);
         display.teleport(landedLocation);
     }
 
-    /** Keep the ORIGINAL ItemDisplay alive and exactly at the impact point. */
     public void keepLanded() {
         if (!landed || display == null || display.isDead() || landedLocation == null) return;
         display.teleport(landedLocation);
