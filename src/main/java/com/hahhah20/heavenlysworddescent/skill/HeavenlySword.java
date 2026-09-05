@@ -1,11 +1,9 @@
 package com.hahhah20.heavenlysworddescent.skill;
 
 import com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin;
+import com.hahhah20.heavenlysworddescent.config.SkillConfig;
 import com.hahhah20.heavenlysworddescent.damage.DamageManager;
-import com.hahhah20.heavenlysworddescent.effect.EnergyEffect;
-import com.hahhah20.heavenlysworddescent.effect.ImpactEffect;
-import com.hahhah20.heavenlysworddescent.effect.SwordTrail;
-import com.hahhah20.heavenlysworddescent.effect.WarningEffect;
+import com.hahhah20.heavenlysworddescent.effect.SwordEffectManager;
 import com.hahhah20.heavenlysworddescent.entity.HeavenlySwordEntity;
 import org.bukkit.Location;
 import org.bukkit.Sound;
@@ -17,6 +15,8 @@ public final class HeavenlySword {
     private final HeavenlySwordDescentPlugin p;
     private final Player caster;
     private final Runnable done;
+    private final SkillConfig config;
+    private final SwordEffectManager effects;
     private Location target;
     private HeavenlySwordEntity sword;
     private SwordState state;
@@ -30,10 +30,12 @@ public final class HeavenlySword {
         p = plugin;
         caster = c;
         done = d;
+        config = new SkillConfig(plugin);
+        effects = new SwordEffectManager(plugin);
     }
 
     public void start() {
-        var block = caster.getTargetBlockExact(p.getConfig().getInt("skill.target-range"));
+        var block = caster.getTargetBlockExact(config.targetRange());
         if (block != null) target = block.getLocation().add(.5, 1, .5);
         else {
             target = caster.getLocation().clone().add(caster.getLocation().getDirection().normalize().multiply(15));
@@ -56,8 +58,7 @@ public final class HeavenlySword {
                     if (sword != null && sword.isLanded()) {
                         try { sword.keepLanded(); } catch (Throwable ignored) {}
                     } else {
-                        finish();
-                        cancel();
+                        finish(); cancel();
                     }
                 }
             }
@@ -66,11 +67,10 @@ public final class HeavenlySword {
     }
 
     private void charge() {
-        float prog = Math.min(1f, tick / (float) p.getConfig().getInt("skill.charge-ticks"));
-        WarningEffect.tick(p, target, tick);
-        EnergyEffect.tick(p, target, tick);
+        float prog = Math.min(1f, tick / (float) config.chargeTicks());
+        effects.charge(target, tick);
         sword.charge(prog);
-        if (tick >= p.getConfig().getInt("skill.charge-ticks")) {
+        if (tick >= config.chargeTicks()) {
             state = SwordState.FALLING;
             tick = 0;
             sword.beginFall();
@@ -81,33 +81,26 @@ public final class HeavenlySword {
     private void fall() {
         if (!sword.exists()) { finish(); return; }
         boolean alive = sword.tickFall();
-        SwordTrail.tick(sword.location(), sword.velocity());
+        effects.falling(sword.location(), sword.velocity());
         if (!alive && sword.isLanded()) {
-            try { ImpactEffect.execute(p, caster, target); }
+            try { effects.impact(target, caster); }
             catch (Throwable error) {
                 p.getLogger().warning("天剑命中效果异常（不影响剑本体驻留）: " + error.getMessage());
             }
             lingerTick = 0;
-            double seconds = Math.max(4.0, p.getConfig().getDouble("skill.linger.seconds", 4.0));
-            lingerEndNanos = System.nanoTime() + (long) (seconds * 1_000_000_000L);
+            lingerEndNanos = System.nanoTime() + (long) (config.lingerSeconds() * 1_000_000_000L);
             state = SwordState.LINGERING;
-            p.getLogger().info("[Sword] LANDED -> LINGERING (" + seconds + "s)");
+            p.getLogger().info("[Sword] LANDED -> LINGERING (" + config.lingerSeconds() + "s)");
         }
     }
 
     private void linger() {
-        if (!sword.exists() || !sword.isLanded()) {
-            finish();
-            return;
-        }
+        if (!sword.exists() || !sword.isLanded()) { finish(); return; }
         sword.keepLanded();
         lingerTick++;
-        int interval = Math.max(1, p.getConfig().getInt("skill.linger.damage-interval-ticks", 10));
-        if (lingerTick % interval == 0) {
+        if (lingerTick % config.lingerDamageInterval() == 0) {
             try { DamageManager.lingeringDamage(p, caster, sword.location()); }
-            catch (Throwable error) {
-                p.getLogger().warning("天剑持续伤害异常（不影响剑本体驻留）: " + error.getMessage());
-            }
+            catch (Throwable error) { p.getLogger().warning("天剑持续伤害异常（不影响剑本体驻留）: " + error.getMessage()); }
         }
         if (System.nanoTime() >= lingerEndNanos) finish();
     }
@@ -116,10 +109,7 @@ public final class HeavenlySword {
         if (finished) return;
         finished = true;
         if (task != null) task.cancel();
-        try {
-            if (sword != null) sword.remove();
-        } finally {
-            done.run();
-        }
+        try { if (sword != null) sword.remove(); }
+        finally { done.run(); }
     }
 }
