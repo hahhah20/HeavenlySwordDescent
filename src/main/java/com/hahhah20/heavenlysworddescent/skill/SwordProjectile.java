@@ -1,34 +1,31 @@
 package com.hahhah20.heavenlysworddescent.skill;
 
 import com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin;
+import com.hahhah20.heavenlysworddescent.model.SwordModelController;
 import org.bukkit.*;
-import org.bukkit.entity.Display;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.ItemMeta;
-import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
-import org.joml.Quaternionf;
-import org.joml.Vector3f;
 
+/**
+ * Legacy-compatible projectile implementation used by the Alpha1 entity boundary.
+ * Gameplay movement is kept here until the full entity migration is complete.
+ */
 public final class SwordProjectile {
     private final HeavenlySwordDescentPlugin plugin;
     private final Location target;
     private final Player facingPlayer;
     private ItemDisplay display;
     private ItemStack swordItem;
+    private SwordModelController model;
     private double y;
     private double velocity;
     private Location landedLocation;
     private float currentScale = 1f;
     private boolean landed;
-
-    // V2.1.20 is based directly on the V2.1.14 sword-body orientation.
-    // Do NOT change this model correction: only the horizontal facing is added.
-    private final Quaternionf fixedSwordRotation = new Quaternionf()
-            .rotateZ((float) Math.toRadians(135.0));
 
     public SwordProjectile(HeavenlySwordDescentPlugin plugin, Location target, Player facingPlayer) {
         this.plugin = plugin;
@@ -47,50 +44,10 @@ public final class SwordProjectile {
         return location;
     }
 
-    /**
-     * The ONLY new orientation behavior in V2.1.20:
-     * rotate the already-correct V2.1.14 sword body horizontally so its face
-     * points at the player who released the skill. Y is ignored completely,
-     * so player pitch can never tilt the sword.
-     */
-    private float facingYaw() {
-        if (facingPlayer == null || !facingPlayer.isOnline()) return 0f;
-        Location swordLocation = landedLocation != null ? landedLocation : positionAtY(y);
-        Vector direction = facingPlayer.getLocation().toVector().subtract(swordLocation.toVector());
-        direction.setY(0.0);
-        if (direction.lengthSquared() < 1.0E-6) return 0f;
-        return (float) Math.toDegrees(Math.atan2(-direction.getX(), direction.getZ()));
-    }
-
     private void facePlayer() {
-        if (display != null && !display.isDead()) {
-            display.setRotation(facingYaw(), 0f);
+        if (model != null && model.exists() && facingPlayer != null && facingPlayer.isOnline()) {
+            model.face(display.getLocation(), facingPlayer.getLocation());
         }
-    }
-
-    private void configureDisplay(ItemDisplay d, ItemStack item, float scale) {
-        d.setItemStack(item.clone());
-        d.setItemDisplayTransform(ItemDisplay.ItemDisplayTransform.NONE);
-        d.setBillboard(Display.Billboard.FIXED);
-        d.setBrightness(new Display.Brightness(15, 15));
-        d.setShadowRadius(0);
-        d.setShadowStrength(0);
-        d.setInterpolationDuration(0);
-        d.setTeleportDuration(0);
-        d.setPersistent(true);
-        d.setInvulnerable(true);
-        setTransform(d, scale);
-    }
-
-    private void setTransform(ItemDisplay d, float scale) {
-        Transformation transformation = new Transformation(
-                new Vector3f(0f, 0f, 0f),
-                new Quaternionf(fixedSwordRotation),
-                new Vector3f(scale, scale, scale),
-                new Quaternionf().identity()
-        );
-        d.setTransformation(transformation);
-        facePlayer();
     }
 
     public void spawn() {
@@ -103,13 +60,17 @@ public final class SwordProjectile {
             swordItem.setItemMeta(meta);
         }
         display = (ItemDisplay) world.spawnEntity(positionAtY(y), EntityType.ITEM_DISPLAY);
-        configureDisplay(display, swordItem, 1f);
+        model = new SwordModelController(display);
+        model.configure(swordItem);
+        model.setScale(1f);
+        facePlayer();
     }
 
     private void transform(float scale) {
         currentScale = scale;
-        if (display == null || display.isDead() || landed) return;
-        setTransform(display, scale);
+        if (display == null || display.isDead() || landed || model == null) return;
+        model.setScale(scale);
+        facePlayer();
     }
 
     public void charge(float progress) {
@@ -120,7 +81,8 @@ public final class SwordProjectile {
         velocity = plugin.getConfig().getDouble("skill.fall-speed");
         landed = false;
         landedLocation = null;
-        if (display != null && !display.isDead()) setTransform(display, currentScale);
+        if (model != null) model.setScale(currentScale);
+        facePlayer();
     }
 
     public boolean tickFall() {
@@ -149,7 +111,7 @@ public final class SwordProjectile {
         display.setTeleportDuration(0);
         display.setPersistent(true);
         display.setInvulnerable(true);
-        setTransform(display, currentScale);
+        if (model != null) model.setScale(currentScale);
         display.teleport(landedLocation);
         facePlayer();
     }
@@ -175,8 +137,10 @@ public final class SwordProjectile {
     public boolean isLanded() { return landed; }
 
     public void remove() {
-        if (display != null && !display.isDead()) display.remove();
+        if (model != null) model.remove();
+        else if (display != null && !display.isDead()) display.remove();
         display = null;
+        model = null;
         landedLocation = null;
         landed = false;
     }
