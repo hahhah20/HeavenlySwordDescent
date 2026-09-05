@@ -6,17 +6,19 @@ import com.hahhah20.heavenlysworddescent.effect.EnergyEffect;
 import com.hahhah20.heavenlysworddescent.effect.ImpactEffect;
 import com.hahhah20.heavenlysworddescent.effect.SwordTrail;
 import com.hahhah20.heavenlysworddescent.effect.WarningEffect;
+import com.hahhah20.heavenlysworddescent.entity.HeavenlySwordEntity;
 import org.bukkit.Location;
 import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
+/** Skill orchestration: target selection, phases, timing and callbacks. */
 public final class HeavenlySword {
     private final HeavenlySwordDescentPlugin p;
     private final Player caster;
     private final Runnable done;
     private Location target;
-    private SwordProjectile sword;
+    private HeavenlySwordEntity sword;
     private SwordState state;
     private int tick;
     private int lingerTick;
@@ -37,11 +39,7 @@ public final class HeavenlySword {
             target = caster.getLocation().clone().add(caster.getLocation().getDirection().normalize().multiply(15));
             target.setY(caster.getLocation().getY());
         }
-        // The sword model must never inherit the caster camera rotation.  Its
-        // ItemDisplay yaw is calculated from the sword toward the caster so
-        // the sword face always turns toward the player, regardless of which
-        // direction the skill was released.
-        sword = new SwordProjectile(p, target, caster);
+        sword = new HeavenlySwordEntity(p, target, caster);
         sword.spawn();
         state = SwordState.CHARGING;
 
@@ -99,8 +97,6 @@ public final class HeavenlySword {
 
     private void linger() {
         if (!sword.exists() || !sword.isLanded()) {
-            // Never allow an early state transition to silently remove a landed sword.
-            // If the display disappeared externally, there is nothing left to preserve.
             finish();
             return;
         }
@@ -113,8 +109,6 @@ public final class HeavenlySword {
                 p.getLogger().warning("天剑持续伤害异常（不影响剑本体驻留）: " + error.getMessage());
             }
         }
-        // Wall-clock timing prevents the sword from disappearing before a real
-        // four seconds have elapsed when the server has irregular tick timing.
         if (System.nanoTime() >= lingerEndNanos) finish();
     }
 
