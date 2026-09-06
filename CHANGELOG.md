@@ -1,5 +1,11 @@
 # Changelog
 
+## 2.2.1
+- 修复冷却 ActionBar 在冷却结束后仍残留最后一次倒计时的问题。
+- 冷却归零后主动清空天剑技能自己的 ActionBar，不再显示“冷却 0.0s/最后数值”。
+- 只有玩家再次释放技能或处于新的冷却期间，才重新显示天剑技能 ActionBar。
+- 关闭插件时同步清理天剑技能曾占用的 ActionBar。
+
 ## 2.2.0
 - 完成天剑降临技能模块化重构。
 - 新增 `skill/HeavenlySwordSkill`，负责目标锁定与 `TARGET_LOCK -> CHARGING -> FALLING -> IMPACT -> LINGERING -> CLEANUP` 流程。
