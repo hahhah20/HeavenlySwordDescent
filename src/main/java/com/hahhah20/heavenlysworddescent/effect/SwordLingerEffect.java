@@ -19,13 +19,18 @@ public final class SwordLingerEffect {
         World world = groundCenter.getWorld();
         if (world == null) return;
 
+        // Complete the short cinematic impact sequence before settling into the persistent state.
+        if (tick <= 6) {
+            ImpactEffect.tick(plugin, groundCenter, tick);
+        }
+
         double progress = Math.max(0.0, Math.min(1.0, tick / (double) Math.max(1, duration)));
-        double fade = 1.0 - progress * 0.22;
+        double fade = 1.0 - progress * 0.30;
         double phase = tick * 0.18;
         SkillConfig config = new SkillConfig(plugin);
 
         // Four complete rings continuously orbit the sword body. Their radii and heights
-        // are deliberately separated so they remain readable as individual energy bands.
+        // remain separated so the sword reads as a powered object rather than a particle cloud.
         for (int ringIndex = 0; ringIndex < 4; ringIndex++) {
             double radius = (0.78 + ringIndex * 0.52) * fade;
             double y = groundCenter.getY() + 1.05 + ringIndex * 0.82;
@@ -54,15 +59,15 @@ public final class SwordLingerEffect {
             }
         }
 
-        // Rising energy motes hug the blade so the sword itself remains visually powered.
+        // A stronger ground-to-blade energy stream makes the embedded sword feel powered.
         if (tick % 2 == 0) {
-            double bladeBaseY = groundCenter.getY() + 0.42;
-            double bladeTopY = Math.max(bladeBaseY + 2.0, swordLocation.getY() + 2.9);
+            double bladeBaseY = groundCenter.getY() + 0.32;
+            double bladeTopY = Math.max(bladeBaseY + 2.0, swordLocation.getY() + 3.05);
             double span = Math.max(1.0, bladeTopY - bladeBaseY);
-            for (int i = 0; i < 12; i++) {
-                double y = bladeBaseY + ((tick * 0.15 + i * 0.49) % span);
-                double angle = phase * 1.35 + i * (Math.PI * 2.0 / 12.0);
-                double radius = 0.28 + (i % 4) * 0.075;
+            for (int i = 0; i < 18; i++) {
+                double y = bladeBaseY + ((tick * 0.19 + i * 0.37) % span);
+                double angle = phase * 1.35 + i * (Math.PI * 2.0 / 18.0);
+                double radius = 0.20 + (i % 5) * 0.07;
                 Location mote = new Location(
                         world,
                         swordLocation.getX() + Math.cos(angle) * radius,
@@ -70,19 +75,32 @@ public final class SwordLingerEffect {
                         swordLocation.getZ() + Math.sin(angle) * radius
                 );
                 world.spawnParticle(Particle.END_ROD, mote, 1,
-                        0.018, 0.035, 0.018, 0.002);
+                        0.018, 0.040, 0.018, 0.004);
             }
         }
 
-        // The ground field has a complete pulse ring and persistent crack glow.
+        // Every half-second, energy visibly erupts from the ground and climbs toward the blade.
+        if (tick % 10 == 0) {
+            for (int i = 0; i < 10; i++) {
+                double angle = phase + i * Math.PI * 2.0 / 10.0;
+                double radius = 0.35 + (i % 3) * 0.18;
+                double y = groundCenter.getY() + 0.12 + (i % 5) * 0.30;
+                Location surge = groundCenter.clone().add(
+                        Math.cos(angle) * radius, y - groundCenter.getY(),
+                        Math.sin(angle) * radius);
+                world.spawnParticle(Particle.END_ROD, surge, 2,
+                        0.025, 0.055, 0.025, 0.012);
+            }
+        }
+
+        // The ground field has a pulse ring and persistent crack glow.
         ShockwaveEffect.tick(groundCenter, tick);
         GroundCrackEffect.tick(groundCenter, tick, config.crackRings());
 
-        // Strong, visible debris bursts on the first second, then occasional fragments
-        // keep the impact site alive without flooding the server for all four seconds.
-        if (tick <= 20 || tick % 12 == 0) {
-            DebrisEffect.burst(world, groundCenter, tick <= 20 ? 30 : 8,
-                    tick <= 20 ? 0.34 : 0.22);
+        // Small fragments fall occasionally after the initial impact, rather than flooding every frame.
+        if (tick <= 20 || tick % 16 == 0) {
+            DebrisEffect.burst(world, groundCenter, tick <= 20 ? 18 : 6,
+                    tick <= 20 ? 0.30 : 0.18);
         }
     }
 }
