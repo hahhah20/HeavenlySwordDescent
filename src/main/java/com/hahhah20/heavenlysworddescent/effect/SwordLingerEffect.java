@@ -19,15 +19,14 @@ public final class SwordLingerEffect {
         World world = groundCenter.getWorld();
         if (world == null) return;
 
-        // Complete the short cinematic impact sequence before settling into the persistent state.
-        if (tick <= 6) {
-            ImpactEffect.tick(plugin, groundCenter, tick);
-        }
-
         double progress = Math.max(0.0, Math.min(1.0, tick / (double) Math.max(1, duration)));
         double fade = 1.0 - progress * 0.30;
         double phase = tick * 0.18;
         SkillConfig config = new SkillConfig(plugin);
+
+        // The impact sequence is scheduled by ImpactEffect itself. Do not replay it here.
+        // Replaying it from the linger tick caused a compile-time call to a nonexistent
+        // ImpactEffect.tick(...) API and would also duplicate the impact visuals.
 
         // Four complete rings continuously orbit the sword body. Their radii and heights
         // remain separated so the sword reads as a powered object rather than a particle cloud.
