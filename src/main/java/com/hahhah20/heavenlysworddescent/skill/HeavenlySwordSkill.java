@@ -10,7 +10,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
-/** V2.2 skill orchestrator with a staged ground-embed impact pass. */
+/** V2.2 skill orchestrator with a bounded ground-embed and linger lifecycle. */
 public final class HeavenlySwordSkill {
     private static final int EMBED_DURATION_TICKS = 8;
 
@@ -26,8 +26,8 @@ public final class HeavenlySwordSkill {
     private SwordState state;
     private int tick;
     private int lingerTick;
+    private int lingerDurationTicks;
     private int embedTick;
-    private long lingerEndNanos;
     private boolean finished;
     private boolean impactDamageApplied;
     private BukkitRunnable task;
@@ -78,14 +78,9 @@ public final class HeavenlySwordSkill {
                     }
                 } catch (Throwable error) {
                     plugin.getLogger().severe("天剑降临异常: " + error.getClass().getSimpleName() + ": " + error.getMessage());
-                    if (sword != null && sword.isLanded()) {
-                        try {
-                            sword.keepLanded();
-                        } catch (Throwable ignored) { }
-                    } else {
-                        finish();
-                        cancel();
-                    }
+                    // Never leave a persistent ItemDisplay behind after an exception.
+                    finish();
+                    cancel();
                 }
             }
         };
@@ -149,9 +144,9 @@ public final class HeavenlySwordSkill {
         if (!impactDamageApplied) {
             try {
                 damage.impact(caster, target);
-                impactDamageApplied = true;
             } catch (Throwable error) {
                 plugin.getLogger().warning("天剑命中伤害异常（不影响剑本体驻留）: " + error.getMessage());
+            } finally {
                 impactDamageApplied = true;
             }
         }
@@ -159,9 +154,9 @@ public final class HeavenlySwordSkill {
         embedTick++;
         if (embedTick > EMBED_DURATION_TICKS) {
             lingerTick = 0;
-            lingerEndNanos = System.nanoTime() + (long) (config.lingerSeconds() * 1_000_000_000L);
+            lingerDurationTicks = Math.max(1, (int) Math.ceil(config.lingerSeconds() * 20.0));
             state = SwordState.LINGERING;
-            plugin.getLogger().info("[Sword] IMPACT EMBED -> LINGERING (" + config.lingerSeconds() + "s)");
+            plugin.getLogger().info("[Sword] IMPACT EMBED -> LINGERING (" + config.lingerSeconds() + "s / " + lingerDurationTicks + " ticks)");
         }
     }
 
@@ -171,8 +166,8 @@ public final class HeavenlySwordSkill {
             return;
         }
 
-        sword.keepLanded();
         lingerTick++;
+        sword.keepLanded();
 
         if (lingerTick % config.lingerDamageInterval() == 0) {
             try {
@@ -182,7 +177,8 @@ public final class HeavenlySwordSkill {
             }
         }
 
-        if (System.nanoTime() >= lingerEndNanos) {
+        // Deterministic server-tick timeout: 4 seconds = 80 ticks by default.
+        if (lingerTick >= lingerDurationTicks) {
             finish();
         }
     }
@@ -195,8 +191,14 @@ public final class HeavenlySwordSkill {
         if (task != null) task.cancel();
         try {
             if (sword != null) sword.remove();
+        } catch (Throwable error) {
+            plugin.getLogger().warning("天剑实体清理异常: " + error.getMessage());
         } finally {
-            done.run();
+            try {
+                done.run();
+            } catch (Throwable error) {
+                plugin.getLogger().warning("天剑完成回调异常: " + error.getMessage());
+            }
         }
     }
 }
