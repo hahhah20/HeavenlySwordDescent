@@ -29,4 +29,9 @@ public final class SwordEffectManager {
     public void embed(Location target, int tick, int duration) {
         SwordEmbedEffect.tick(plugin, target, tick, duration);
     }
+
+    /** Keeps the grounded sword surrounded by rotating energy rings during its linger window. */
+    public void lingering(Location groundCenter, Location swordLocation, int tick, int duration) {
+        SwordLingerEffect.tick(plugin, groundCenter, swordLocation, tick, duration);
+    }
 }
