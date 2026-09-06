@@ -24,4 +24,9 @@ public final class SwordEffectManager {
     public void impact(Location target, Player caster) {
         ImpactEffect.execute(plugin, caster, target);
     }
+
+    /** Plays one frame of the staged piercing/settling animation. */
+    public void embed(Location target, int tick, int duration) {
+        SwordEmbedEffect.tick(plugin, target, tick, duration);
+    }
 }
