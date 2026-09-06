@@ -6,6 +6,7 @@ import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.block.data.BlockData;
 
 /** Animated visual pass for the sword piercing and settling into the ground. */
 public final class SwordEmbedEffect {
@@ -25,30 +26,44 @@ public final class SwordEmbedEffect {
         Location base = center.clone().add(0, 0.12, 0);
 
         int columnCount = Math.max(1, (int) Math.round(5 - progress * 3));
-        for (double y = 0.15; y <= 3.6; y += 0.36) {
+        for (double y = 0.15; y <= 3.8; y += 0.34) {
             world.spawnParticle(Particle.END_ROD, base.clone().add(0, y, 0),
                     columnCount, 0.06 + progress * 0.10, 0.04,
                     0.06 + progress * 0.10, 0.004);
         }
 
-        int points = 24;
+        int points = 28;
         for (int i = 0; i < points; i++) {
-            double angle = (Math.PI * 2.0 * i) / points;
+            double angle = (Math.PI * 2.0 * i) / points + tick * 0.14;
             Location ring = base.clone().add(Math.cos(angle) * radius, 0.06, Math.sin(angle) * radius);
             world.spawnParticle(Particle.END_ROD, ring, 1, 0.04, 0.025, 0.04, 0.002);
         }
 
-        Material ground = world.getBlockAt(base).getType();
-        if (ground.isSolid() && ground != Material.AIR) {
-            int debris = Math.max(2, (int) Math.round(28 * (1.0 - progress * 0.75)));
-            world.spawnParticle(Particle.BLOCK, base, debris,
-                    0.55 + progress * 0.35, 0.08, 0.55 + progress * 0.35,
-                    0.10, world.getBlockAt(base).getBlockData());
+        // Target points at the air block above the hit surface, so debris must sample one block below.
+        Location groundSample = center.clone().add(0, -1.0, 0);
+        Material groundType = world.getBlockAt(groundSample).getType();
+        BlockData groundData = groundType.isSolid()
+                ? world.getBlockAt(groundSample).getBlockData()
+                : Material.STONE.createBlockData();
+
+        int debris = Math.max(4, (int) Math.round(34 * (1.0 - progress * 0.70)));
+        world.spawnParticle(Particle.BLOCK, base.clone().add(0, 0.18, 0), debris,
+                0.65 + progress * 0.55, 0.20 + (1.0 - progress) * 0.40,
+                0.65 + progress * 0.55, 0.16 + (1.0 - progress) * 0.12, groundData);
+
+        // Extra upward sparks visually separate the flying rubble from the flat ground particles.
+        if (tick <= Math.max(2, duration / 2)) {
+            world.spawnParticle(Particle.CRIT, base.clone().add(0, 0.30, 0),
+                    16, 0.70, 0.38, 0.70, 0.18);
+            world.spawnParticle(Particle.CLOUD, base.clone().add(0, 0.12, 0),
+                    10, 0.70, 0.08, 0.70, 0.045);
         }
 
         if (tick == 0) {
             world.spawnParticle(Particle.EXPLOSION_EMITTER, base, 1);
             world.spawnParticle(Particle.FLASH, base, 1);
+            world.spawnParticle(Particle.BLOCK, base.clone().add(0, 0.22, 0), 42,
+                    0.85, 0.55, 0.85, 0.24, groundData);
             world.playSound(base, Sound.BLOCK_STONE_BREAK, 2.0f, 0.55f);
             world.playSound(base, Sound.ITEM_TRIDENT_RIPTIDE_1, 1.4f, 0.65f);
         }
