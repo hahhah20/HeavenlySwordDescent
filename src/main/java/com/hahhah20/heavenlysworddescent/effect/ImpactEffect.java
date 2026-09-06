@@ -1,6 +1,7 @@
 package com.hahhah20.heavenlysworddescent.effect;
 
 import com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin;
+import com.hahhah20.heavenlysworddescent.config.SkillConfig;
 import org.bukkit.Location;
 import org.bukkit.Particle;
 import org.bukkit.Sound;
@@ -25,7 +26,8 @@ public final class ImpactEffect {
             world.spawnParticle(Particle.END_ROD, center.clone().add(0, y, 0), 3, .25, .1, .25, .01);
         }
 
-        GroundCrackEffect.create(center, plugin.getConfig().getInt("visual.crack-rings"));
+        int crackRings = new SkillConfig(plugin).crackRings();
+        GroundCrackEffect.create(center, crackRings);
         ShockwaveEffect.create(center);
     }
 }
