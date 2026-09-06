@@ -1,7 +1,8 @@
 package com.hahhah20.heavenlysworddescent.manager;
 
 import com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin;
-import com.hahhah20.heavenlysworddescent.skill.HeavenlySword;
+import com.hahhah20.heavenlysworddescent.config.SkillConfig;
+import com.hahhah20.heavenlysworddescent.skill.HeavenlySwordSkill;
 import net.kyori.adventure.text.Component;
 import org.bukkit.Bukkit;
 import org.bukkit.entity.Player;
@@ -13,11 +14,13 @@ import java.util.UUID;
 
 public final class SkillManager {
     private final HeavenlySwordDescentPlugin plugin;
+    private final SkillConfig config;
     private final Set<UUID> casting = new HashSet<>();
     private final BukkitTask actionBarTask;
 
     public SkillManager(HeavenlySwordDescentPlugin plugin) {
         this.plugin = plugin;
+        this.config = new SkillConfig(plugin);
         this.actionBarTask = Bukkit.getScheduler().runTaskTimer(plugin, this::updateActionBars, 0L, 2L);
     }
 
@@ -33,13 +36,13 @@ public final class SkillManager {
         }
 
         casting.add(id);
-        plugin.getCooldownManager().set(id, plugin.getConfig().getLong("skill.cooldown-seconds") * 1000L);
+        plugin.getCooldownManager().set(id, (long) (config.cooldownSeconds() * 1000L));
         notifyPlayer(player, "§b⚔ 天剑降临 §f释放中...");
-        new HeavenlySword(plugin, player, () -> casting.remove(id)).start();
+        new HeavenlySwordSkill(plugin, player, () -> casting.remove(id)).start();
     }
 
     private void updateActionBars() {
-        if (!plugin.getConfig().getBoolean("skill.display.actionbar", true)) return;
+        if (!config.actionbar()) return;
         for (Player player : Bukkit.getOnlinePlayers()) {
             UUID id = player.getUniqueId();
             if (casting.contains(id)) {
@@ -51,18 +54,14 @@ public final class SkillManager {
     }
 
     private void showCooldown(Player player) {
-        if (!plugin.getConfig().getBoolean("skill.display.actionbar", true)) return;
+        if (!config.actionbar()) return;
         double seconds = plugin.getCooldownManager().remaining(player.getUniqueId()) / 1000.0;
         showActionBar(player, String.format("§6⚔ 天剑降临 §f冷却：%.1fs", seconds));
     }
 
     private void notifyPlayer(Player player, String message) {
-        if (plugin.getConfig().getBoolean("skill.display.actionbar", true)) {
-            showActionBar(player, message);
-        }
-        if (plugin.getConfig().getBoolean("skill.display.chat-message", false)) {
-            player.sendMessage(message);
-        }
+        if (config.actionbar()) showActionBar(player, message);
+        if (config.chatMessage()) player.sendMessage(message);
     }
 
     private void showActionBar(Player player, String message) {
