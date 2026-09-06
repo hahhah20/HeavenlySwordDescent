@@ -10,7 +10,7 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
-/** V2.2 skill orchestrator with a bounded ground-embed and linger lifecycle. */
+/** V2.2 skill orchestrator with an explicit landed hold lifecycle. */
 public final class HeavenlySwordSkill {
     private static final int EMBED_DURATION_TICKS = 8;
 
@@ -124,11 +124,15 @@ public final class HeavenlySwordSkill {
         effects.falling(sword.location(), sword.velocity());
 
         if (!alive && sword.isLanded()) {
+            // The landing event is handled once, then the sword is explicitly held in
+            // LINGERING for the configured duration. No landing effect can end the sword.
             state = SwordState.IMPACT;
             embedTick = 0;
+            lingerTick = 0;
+            lingerDurationTicks = Math.max(1, (int) Math.ceil(config.lingerSeconds() * 20.0));
             impactDamageApplied = false;
             impactVisualApplied = false;
-            plugin.getLogger().info("[Sword] LANDED -> IMPACT EMBED (8 ticks)");
+            plugin.getLogger().info("[Sword] LANDED -> IMPACT -> LINGERING (" + lingerDurationTicks + " ticks)");
         }
     }
 
@@ -138,39 +142,31 @@ public final class HeavenlySwordSkill {
             return;
         }
 
+        // Lock the display at its landed position before any particle/sound code runs.
         sword.keepLanded();
 
-        // The full impact pass must fire once: ground cracks, shockwave, flash and burst.
         if (!impactVisualApplied) {
             try {
                 effects.impact(target, caster);
             } catch (Throwable error) {
-                plugin.getLogger().warning("天剑落地特效异常（继续驻留）: " + error.getMessage());
-            } finally {
-                impactVisualApplied = true;
+                // Visual failures must never remove the sword.
+                plugin.getLogger().warning("天剑落地特效异常（保留剑本体）: " + error.getClass().getSimpleName() + ": " + error.getMessage());
             }
+            impactVisualApplied = true;
         }
-
-        // Continue the short piercing/settling animation after the initial burst.
-        effects.embed(target, embedTick, EMBED_DURATION_TICKS);
 
         if (!impactDamageApplied) {
             try {
                 damage.impact(caster, target);
             } catch (Throwable error) {
                 plugin.getLogger().warning("天剑命中伤害异常（不影响剑本体驻留）: " + error.getMessage());
-            } finally {
-                impactDamageApplied = true;
             }
+            impactDamageApplied = true;
         }
 
-        embedTick++;
-        if (embedTick > EMBED_DURATION_TICKS) {
-            lingerTick = 0;
-            lingerDurationTicks = Math.max(1, (int) Math.ceil(config.lingerSeconds() * 20.0));
-            state = SwordState.LINGERING;
-            plugin.getLogger().info("[Sword] IMPACT EMBED -> LINGERING (" + config.lingerSeconds() + "s / " + lingerDurationTicks + " ticks)");
-        }
+        // Do not wait for another state transition to preserve the landed ItemDisplay.
+        // The first 8 linger ticks are the visual embed/settling animation.
+        state = SwordState.LINGERING;
     }
 
     private void linger() {
@@ -179,10 +175,15 @@ public final class HeavenlySwordSkill {
             return;
         }
 
-        lingerTick++;
+        // Keep the ItemDisplay anchored every tick for the entire linger window.
         sword.keepLanded();
+        lingerTick++;
 
-        // Keep the landed sword visually alive for the whole linger window.
+        if (embedTick <= EMBED_DURATION_TICKS) {
+            effects.embed(target, embedTick, EMBED_DURATION_TICKS);
+            embedTick++;
+        }
+
         effects.lingering(target, sword.location(), lingerTick, lingerDurationTicks);
 
         if (lingerTick % config.lingerDamageInterval() == 0) {
