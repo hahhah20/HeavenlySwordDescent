@@ -1,9 +1,9 @@
 name: HeavenlySwordDescent
-version: 2.2.8
+version: 2.2.9
 main: com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin
 api-version: '1.21'
 author: hahhah20
-description: 天剑降临 - 天空巨剑坠落技能 V2.2.8
+description: 天剑降临 - 天空巨剑坠落技能 V2.2.9
 commands:
   heavenlysword:
     description: 释放天剑降临
