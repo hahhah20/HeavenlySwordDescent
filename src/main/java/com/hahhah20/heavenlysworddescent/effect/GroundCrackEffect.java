@@ -7,7 +7,7 @@ import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
-/** Persistent, readable radial fissures at the sword impact point. */
+/** Persistent, high-contrast radial fissures at the sword impact point. */
 public final class GroundCrackEffect {
     private GroundCrackEffect() { }
 
@@ -15,78 +15,90 @@ public final class GroundCrackEffect {
         World world = center.getWorld();
         if (world == null) return;
         BlockData data = groundData(world, center);
-        int rayCount = Math.max(14, Math.min(22, Math.max(2, rings) * 5));
+        int rayCount = Math.max(12, Math.min(18, Math.max(2, rings) * 4));
 
+        // Fewer, longer fractures make the ground pattern readable instead of becoming noise.
         for (int ray = 0; ray < rayCount; ray++) {
-            double angle = Math.PI * 2.0 * ray / rayCount + Math.sin(ray * 1.91) * 0.08;
-            double length = 3.2 + (ray % 5) * 0.45;
-            drawCrack(world, center, data, angle, 0.35, length, 0.035);
+            double angle = Math.PI * 2.0 * ray / rayCount + Math.sin(ray * 1.91) * 0.09;
+            double length = 3.0 + (ray % 4) * 0.55;
+            drawCrack(world, center, data, angle, 0.28, length, 0.035, true);
 
             if (ray % 2 == 0) {
-                double branchAngle = angle + (ray % 4 == 0 ? 0.50 : -0.50);
+                double branchAngle = angle + (ray % 4 == 0 ? 0.52 : -0.52);
                 drawCrack(world, center, data, branchAngle,
-                        1.25 + (ray % 3) * 0.25, 2.25 + (ray % 3) * 0.35, 0.030);
+                        1.15 + (ray % 3) * 0.25, 2.05 + (ray % 3) * 0.30,
+                        0.028, false);
             }
         }
     }
 
-    /** Reinforces the fissures during the landed phase without turning them into a circle. */
+    /** Refreshes only the strongest crack segments during the landed phase. */
     public static void tick(Location center, int tick, int rings) {
         World world = center.getWorld();
         if (world == null) return;
         BlockData data = groundData(world, center);
-        int rayCount = Math.max(12, Math.min(20, Math.max(2, rings) * 5));
-        double rotation = tick * 0.010;
+        int rayCount = Math.max(10, Math.min(16, Math.max(2, rings) * 4));
+        double rotation = tick * 0.006;
 
         for (int ray = 0; ray < rayCount; ray++) {
             double angle = Math.PI * 2.0 * ray / rayCount + rotation
-                    + Math.sin(ray * 2.4) * 0.05;
-            double length = 2.45 + (ray % 4) * 0.52;
-            for (double d = 0.42; d <= length; d += 0.28) {
-                // Leave irregular gaps so the line reads as a fracture rather than a beam.
-                if (((int) (d * 10) + ray + tick / 4) % 7 == 0) continue;
-                double wobble = Math.sin(d * 4.2 + ray * 1.7) * 0.12;
-                Location p = surface(center, d, angle + wobble, 0.020);
+                    + Math.sin(ray * 2.4) * 0.06;
+            double length = 2.35 + (ray % 4) * 0.48;
+            for (double d = 0.42; d <= length; d += 0.30) {
+                // Stable broken segments: the crack shape remains recognizable instead of spinning.
+                int segment = (int) Math.floor(d / 0.30);
+                if ((segment + ray + tick / 5) % 6 == 0) continue;
+                double wobble = Math.sin(d * 4.0 + ray * 1.7) * 0.13;
+                Location p = surface(center, d, angle + wobble, 0.018);
 
-                world.spawnParticle(Particle.BLOCK_CRUMBLE, p, 1,
-                        0.035, 0.010, 0.035, 0.012, data);
-
-                // Dark core + small gold edge makes the fissure readable against grass/stone.
                 world.spawnParticle(Particle.DUST, p, 2,
-                        0.020, 0.006, 0.020, 0.0,
-                        new Particle.DustOptions(Color.fromRGB(38, 24, 16), 1.05f));
-                if ((ray + (int) (d * 10) + tick) % 5 == 0) {
+                        0.018, 0.004, 0.018, 0.0,
+                        new Particle.DustOptions(Color.fromRGB(28, 18, 12), 1.25f));
+                if ((segment + ray + tick) % 4 == 0) {
+                    world.spawnParticle(Particle.BLOCK_CRUMBLE, p, 1,
+                            0.030, 0.012, 0.030, 0.008, data);
+                }
+                if ((segment + ray + tick) % 9 == 0) {
                     world.spawnParticle(Particle.DUST, p, 1,
-                            0.010, 0.004, 0.010, 0.0,
-                            new Particle.DustOptions(Color.fromRGB(255, 194, 46), 0.82f));
+                            0.008, 0.002, 0.008, 0.0,
+                            new Particle.DustOptions(Color.fromRGB(255, 184, 42), 0.78f));
                 }
             }
         }
     }
 
     private static void drawCrack(World world, Location center, BlockData data,
-                                  double angle, double start, double end, double yOffset) {
-        for (double d = start; d <= end; d += 0.24) {
-            double wobble = Math.sin(d * 3.7 + angle * 5.0) * 0.11;
+                                  double angle, double start, double end,
+                                  double yOffset, boolean major) {
+        int segment = 0;
+        for (double d = start; d <= end; d += major ? 0.25 : 0.28) {
+            // Deliberate gaps create separate fracture plates rather than continuous particle beams.
+            if ((segment + (int) Math.round(angle * 10.0)) % (major ? 7 : 5) == 0) {
+                segment++;
+                continue;
+            }
+
+            double wobble = Math.sin(d * 3.6 + angle * 5.0) * (major ? 0.12 : 0.10);
             Location p = surface(center, d, angle + wobble, yOffset);
 
-            world.spawnParticle(Particle.BLOCK_CRUMBLE, p, 2,
-                    0.045, 0.012, 0.045, 0.018, data);
-            world.spawnParticle(Particle.DUST, p, 2,
-                    0.022, 0.006, 0.022, 0.0,
-                    new Particle.DustOptions(Color.fromRGB(38, 24, 16), 1.12f));
-            if (((int) (d * 10)) % 6 == 0) {
+            world.spawnParticle(Particle.DUST, p, major ? 3 : 2,
+                    0.022, 0.005, 0.022, 0.0,
+                    new Particle.DustOptions(Color.fromRGB(24, 16, 10), major ? 1.35f : 1.15f));
+            world.spawnParticle(Particle.BLOCK_CRUMBLE, p, major ? 2 : 1,
+                    0.040, 0.014, 0.040, 0.012, data);
+            if (segment % (major ? 5 : 4) == 0) {
                 world.spawnParticle(Particle.DUST, p, 1,
-                        0.010, 0.004, 0.010, 0.0,
-                        new Particle.DustOptions(Color.fromRGB(255, 205, 58), 0.86f));
+                        0.008, 0.003, 0.008, 0.0,
+                        new Particle.DustOptions(Color.fromRGB(255, 198, 48), major ? 0.90f : 0.72f));
             }
+            segment++;
         }
     }
 
     private static Location surface(Location center, double radius, double angle, double yOffset) {
         return center.clone().add(
                 Math.cos(angle) * radius,
-                -0.99 + yOffset,
+                -0.995 + yOffset,
                 Math.sin(angle) * radius
         );
     }
