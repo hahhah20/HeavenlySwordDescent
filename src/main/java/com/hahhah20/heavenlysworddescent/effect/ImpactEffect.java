@@ -25,16 +25,35 @@ public final class ImpactEffect {
         // The blade orientation is intentionally untouched. Only impact visuals are changed.
         SwordEmbedEffect.execute(plugin, center);
 
-        for (double y = 0; y <= 9; y += .25) {
-            world.spawnParticle(Particle.END_ROD, center.clone().add(0, y, 0), 3,
-                    .25, .1, .25, .01);
+        // A short vertical energy column marks the exact strike point without hiding the sword.
+        for (double y = 0; y <= 9; y += .35) {
+            world.spawnParticle(Particle.END_ROD, center.clone().add(0, y, 0), 2,
+                    .18, .08, .18, .008);
         }
 
         int crackRings = new SkillConfig(plugin).crackRings();
-        GroundCrackEffect.create(center, crackRings);
-        ShockwaveEffect.create(center);
+        // Impact is deliberately staged instead of drawing every ring/crack on the same frame.
+        GroundCrackEffect.createStage(center, crackRings, 0.75);
+        ShockwaveEffect.createStage(center, 0);
+        DebrisEffect.burst(world, center, 42, 0.44);
 
-        // Immediate, high-visibility rubble spray at the exact impact frame.
-        DebrisEffect.burst(world, center, 64, 0.48);
+        // 0.05s: first shockwave expansion.
+        later(plugin, 1, () -> ShockwaveEffect.createStage(center, 1));
+        // 0.08s: the first large rubble throw is visually separated from the flash.
+        later(plugin, 2, () -> DebrisEffect.burst(world, center, 58, 0.62));
+        // 0.12s: fractures visibly grow out from the impact center.
+        later(plugin, 2, () -> GroundCrackEffect.createStage(center, crackRings, 1.65));
+        later(plugin, 3, () -> GroundCrackEffect.createStage(center, crackRings, 2.55));
+        // 0.20s: second shockwave expansion.
+        later(plugin, 4, () -> ShockwaveEffect.createStage(center, 2));
+        // 0.24s: second debris layer gives the impact a longer physical arc.
+        later(plugin, 5, () -> DebrisEffect.burst(world, center, 38, 0.50));
+        // 0.30s: final crack reach + outer shockwave edge.
+        later(plugin, 6, () -> GroundCrackEffect.createStage(center, crackRings, 4.20));
+        later(plugin, 6, () -> ShockwaveEffect.createStage(center, 3));
+    }
+
+    private static void later(HeavenlySwordDescentPlugin plugin, long ticks, Runnable task) {
+        plugin.getServer().getScheduler().runTaskLater(plugin, task, ticks);
     }
 }
