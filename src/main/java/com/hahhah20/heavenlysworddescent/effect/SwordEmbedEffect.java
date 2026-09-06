@@ -14,23 +14,23 @@ public final class SwordEmbedEffect {
         World world = center.getWorld();
         if (world == null) return;
 
-        Location base = center.clone().add(0, 0.12, 0);
+        Location base = center.clone().subtract(0, 0.9, 0);
+        var groundData = world.getBlockAt(base).getBlockData();
 
-        // Tight vertical energy column to visually connect the blade to the impact point.
+        // Tight vertical energy column visually connects the blade to the impact point.
         for (double y = 0.15; y <= 3.6; y += 0.3) {
-            world.spawnParticle(Particle.END_ROD, base.clone().add(0, y, 0),
+            world.spawnParticle(Particle.END_ROD, center.clone().add(0, y, 0),
                     2, 0.08, 0.05, 0.08, 0.005);
         }
 
         // Concentrated ground burst makes the blade read as physically piercing the block.
-        world.spawnParticle(Particle.BLOCK, base, 28, 0.65, 0.08, 0.65, 0.12,
-                world.getBlockAt(base).getBlockData());
+        world.spawnParticle(Particle.BLOCK, base, 28, 0.65, 0.08, 0.65, 0.12, groundData);
         world.spawnParticle(Particle.CLOUD, base.clone().add(0, 0.15, 0),
                 12, 0.45, 0.08, 0.45, 0.035);
-        world.spawnParticle(Particle.CRIT, base.clone().add(0, 0.45, 0),
+        world.spawnParticle(Particle.CRIT, center.clone().add(0, 0.45, 0),
                 18, 0.35, 0.35, 0.35, 0.08);
 
         world.playSound(base, Sound.BLOCK_STONE_BREAK, 2.0f, 0.55f);
-        world.playSound(base, Sound.ITEM_TRIDENT_RIPTIDE_1, 1.4f, 0.65f);
+        world.playSound(base, Sound.ENTITY_PLAYER_ATTACK_STRONG, 1.4f, 0.65f);
     }
 }
