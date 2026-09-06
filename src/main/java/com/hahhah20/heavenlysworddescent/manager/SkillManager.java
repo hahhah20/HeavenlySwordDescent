@@ -16,6 +16,7 @@ public final class SkillManager {
     private final HeavenlySwordDescentPlugin plugin;
     private final SkillConfig config;
     private final Set<UUID> casting = new HashSet<>();
+    private final Set<UUID> actionBarOwned = new HashSet<>();
     private final BukkitTask actionBarTask;
 
     public SkillManager(HeavenlySwordDescentPlugin plugin) {
@@ -47,8 +48,13 @@ public final class SkillManager {
             UUID id = player.getUniqueId();
             if (casting.contains(id)) {
                 showActionBar(player, "§b⚔ 天剑降临 §f释放中...");
+                actionBarOwned.add(id);
             } else if (plugin.getCooldownManager().active(id)) {
                 showCooldown(player);
+            } else if (actionBarOwned.remove(id)) {
+                // Explicitly clear the skill's action bar once the cooldown expires.
+                // This prevents the last cooldown value from visually lingering.
+                showActionBar(player, "");
             }
         }
     }
@@ -57,10 +63,14 @@ public final class SkillManager {
         if (!config.actionbar()) return;
         double seconds = plugin.getCooldownManager().remaining(player.getUniqueId()) / 1000.0;
         showActionBar(player, String.format("§6⚔ 天剑降临 §f冷却：%.1fs", seconds));
+        actionBarOwned.add(player.getUniqueId());
     }
 
     private void notifyPlayer(Player player, String message) {
-        if (config.actionbar()) showActionBar(player, message);
+        if (config.actionbar()) {
+            showActionBar(player, message);
+            actionBarOwned.add(player.getUniqueId());
+        }
         if (config.chatMessage()) player.sendMessage(message);
     }
 
@@ -69,6 +79,11 @@ public final class SkillManager {
     }
 
     public void shutdown() {
+        for (UUID id : actionBarOwned) {
+            Player player = Bukkit.getPlayer(id);
+            if (player != null) showActionBar(player, "");
+        }
+        actionBarOwned.clear();
         casting.clear();
         plugin.getCooldownManager().clearAll();
         actionBarTask.cancel();
