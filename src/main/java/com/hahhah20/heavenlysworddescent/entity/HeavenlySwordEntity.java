@@ -72,7 +72,9 @@ public final class HeavenlySwordEntity {
     }
 
     public void charge(float progress) {
-        currentScale = 1.8f + 2.2f * progress;
+        float startScale = config.chargeStartScale();
+        float endScale = config.chargeEndScale();
+        currentScale = startScale + (endScale - startScale) * progress;
         if (!landed && model != null) model.setScale(currentScale);
         facePlayer();
     }
