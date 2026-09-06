@@ -7,35 +7,33 @@ import org.bukkit.Particle;
 import org.bukkit.World;
 import org.bukkit.block.data.BlockData;
 
-/** Persistent, high-contrast radial fissures at the sword impact point. */
+/** Staged, high-contrast radial fissures at the sword impact point. */
 public final class GroundCrackEffect {
     private GroundCrackEffect() { }
 
     public static void create(Location center, int rings) {
+        createStage(center, rings, 4.2);
+    }
+
+    /** Draw only the portion of the fracture network that has reached this radius. */
+    public static void createStage(Location center, int rings, double maxRadius) {
         World world = center.getWorld();
         if (world == null) return;
         BlockData data = groundData(world, center);
         int rayCount = Math.max(12, Math.min(18, Math.max(2, rings) * 4));
+        double limit = Math.max(0.45, Math.min(5.0, maxRadius));
 
-        // A shallow broken impact plate makes the strike readable before the energy ring expands.
-        for (int i = 0; i < 24; i++) {
-            double angle = Math.PI * 2.0 * i / 24.0;
-            double radius = 0.72 + (i % 3) * 0.13;
-            Location point = surface(center, radius, angle, 0.055);
-            world.spawnParticle(Particle.BLOCK_CRUMBLE, point, 2,
-                    0.05, 0.025, 0.05, 0.02, data);
-        }
-
-        // Fewer, longer fractures make the ground pattern readable instead of becoming noise.
         for (int ray = 0; ray < rayCount; ray++) {
             double angle = Math.PI * 2.0 * ray / rayCount + Math.sin(ray * 1.91) * 0.09;
-            double length = 3.0 + (ray % 4) * 0.55;
+            double length = Math.min(limit, 3.0 + (ray % 4) * 0.55);
+            if (length <= 0.4) continue;
             drawCrack(world, center, data, angle, 0.28, length, 0.070, true);
 
-            if (ray % 2 == 0) {
+            if (ray % 2 == 0 && limit > 1.25) {
                 double branchAngle = angle + (ray % 4 == 0 ? 0.52 : -0.52);
                 drawCrack(world, center, data, branchAngle,
-                        1.15 + (ray % 3) * 0.25, 2.05 + (ray % 3) * 0.30,
+                        1.15 + (ray % 3) * 0.25,
+                        Math.min(limit, 2.05 + (ray % 3) * 0.30),
                         0.062, false);
             }
         }
@@ -103,7 +101,6 @@ public final class GroundCrackEffect {
     }
 
     private static Location surface(Location center, double radius, double angle, double yOffset) {
-        // Keep the fissure particles just above the block face so they remain visible at normal camera distance.
         return center.clone().add(
                 Math.cos(angle) * radius,
                 -0.86 + yOffset,
