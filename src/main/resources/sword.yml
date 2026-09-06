@@ -1,0 +1,9 @@
+sword:
+  height: 18.0
+  fall-speed: 0.65
+  fall-acceleration: 0.12
+  max-fall-speed: 4.8
+  model:
+    material: NETHERITE_SWORD
+    charge-start-scale: 1.8
+    charge-end-scale: 4.0
