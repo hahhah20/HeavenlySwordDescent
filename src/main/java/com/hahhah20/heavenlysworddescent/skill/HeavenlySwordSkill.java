@@ -30,6 +30,7 @@ public final class HeavenlySwordSkill {
     private int embedTick;
     private boolean finished;
     private boolean impactDamageApplied;
+    private boolean impactVisualApplied;
     private BukkitRunnable task;
 
     public HeavenlySwordSkill(HeavenlySwordDescentPlugin plugin, Player caster, Runnable done) {
@@ -78,7 +79,6 @@ public final class HeavenlySwordSkill {
                     }
                 } catch (Throwable error) {
                     plugin.getLogger().severe("天剑降临异常: " + error.getClass().getSimpleName() + ": " + error.getMessage());
-                    // Never leave a persistent ItemDisplay behind after an exception.
                     finish();
                     cancel();
                 }
@@ -127,6 +127,7 @@ public final class HeavenlySwordSkill {
             state = SwordState.IMPACT;
             embedTick = 0;
             impactDamageApplied = false;
+            impactVisualApplied = false;
             plugin.getLogger().info("[Sword] LANDED -> IMPACT EMBED (8 ticks)");
         }
     }
@@ -138,9 +139,21 @@ public final class HeavenlySwordSkill {
         }
 
         sword.keepLanded();
+
+        // The full impact pass must fire once: ground cracks, shockwave, flash and burst.
+        if (!impactVisualApplied) {
+            try {
+                effects.impact(target, caster);
+            } catch (Throwable error) {
+                plugin.getLogger().warning("天剑落地特效异常（继续驻留）: " + error.getMessage());
+            } finally {
+                impactVisualApplied = true;
+            }
+        }
+
+        // Continue the short piercing/settling animation after the initial burst.
         effects.embed(target, embedTick, EMBED_DURATION_TICKS);
 
-        // Gameplay impact damage remains a single event at the start of impact.
         if (!impactDamageApplied) {
             try {
                 damage.impact(caster, target);
@@ -169,6 +182,9 @@ public final class HeavenlySwordSkill {
         lingerTick++;
         sword.keepLanded();
 
+        // Keep the landed sword visually alive for the whole linger window.
+        effects.lingering(target, sword.location(), lingerTick, lingerDurationTicks);
+
         if (lingerTick % config.lingerDamageInterval() == 0) {
             try {
                 damage.lingering(caster, sword.location());
@@ -177,7 +193,6 @@ public final class HeavenlySwordSkill {
             }
         }
 
-        // Deterministic server-tick timeout: 4 seconds = 80 ticks by default.
         if (lingerTick >= lingerDurationTicks) {
             finish();
         }
