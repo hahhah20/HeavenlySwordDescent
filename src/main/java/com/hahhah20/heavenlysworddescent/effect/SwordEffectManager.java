@@ -1,17 +1,15 @@
 package com.hahhah20.heavenlysworddescent.effect;
 
 import com.hahhah20.heavenlysworddescent.HeavenlySwordDescentPlugin;
-import com.hahhah20.heavenlysworddescent.config.SkillConfig;
 import org.bukkit.Location;
+import org.bukkit.entity.Player;
 
 /** Single entry point for the sword's visual effect phases. */
 public final class SwordEffectManager {
     private final HeavenlySwordDescentPlugin plugin;
-    private final SkillConfig config;
 
     public SwordEffectManager(HeavenlySwordDescentPlugin plugin) {
         this.plugin = plugin;
-        this.config = new SkillConfig(plugin);
     }
 
     public void charge(Location target, int tick) {
@@ -20,12 +18,10 @@ public final class SwordEffectManager {
     }
 
     public void falling(Location swordLocation, double velocity) {
-        SwordTrail.tick(swordLocation, velocity);
+        SwordTrail.tick(plugin, swordLocation, velocity);
     }
 
-    public void impact(Location target, org.bukkit.entity.Player caster) {
+    public void impact(Location target, Player caster) {
         ImpactEffect.execute(plugin, caster, target);
     }
-
-    public int crackRings() { return config.crackRings(); }
 }
