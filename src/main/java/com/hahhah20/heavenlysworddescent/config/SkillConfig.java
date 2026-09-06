@@ -96,13 +96,39 @@ public final class SkillConfig {
         return Math.max(1, modules.effects().getInt("visual.crack-rings", fallback));
     }
 
-    public double coreRadius() { return plugin.getConfig().getDouble("skill.radius.core", 2.0); }
-    public double middleRadius() { return plugin.getConfig().getDouble("skill.radius.middle", 3.5); }
-    public double outerRadius() { return plugin.getConfig().getDouble("skill.radius.outer", 5.0); }
-    public double coreDamage() { return plugin.getConfig().getDouble("skill.damage.core", 80.0); }
-    public double middleDamage() { return plugin.getConfig().getDouble("skill.damage.middle", 45.0); }
-    public double outerDamage() { return plugin.getConfig().getDouble("skill.damage.outer", 20.0); }
-    public boolean damageCaster() { return plugin.getConfig().getBoolean("skill.damage-caster", false); }
-    public double knockback() { return plugin.getConfig().getDouble("skill.impact.knockback", 2.2); }
-    public double verticalKnockback() { return plugin.getConfig().getDouble("skill.impact.vertical-knockback", 0.55); }
+    public double coreRadius() {
+        return modules.skills().getDouble("skill.radius.core", plugin.getConfig().getDouble("skill.radius.core", 2.0));
+    }
+
+    public double middleRadius() {
+        return modules.skills().getDouble("skill.radius.middle", plugin.getConfig().getDouble("skill.radius.middle", 3.5));
+    }
+
+    public double outerRadius() {
+        return modules.skills().getDouble("skill.radius.outer", plugin.getConfig().getDouble("skill.radius.outer", 5.0));
+    }
+
+    public double coreDamage() {
+        return modules.skills().getDouble("skill.damage.core", plugin.getConfig().getDouble("skill.damage.core", 80.0));
+    }
+
+    public double middleDamage() {
+        return modules.skills().getDouble("skill.damage.middle", plugin.getConfig().getDouble("skill.damage.middle", 45.0));
+    }
+
+    public double outerDamage() {
+        return modules.skills().getDouble("skill.damage.outer", plugin.getConfig().getDouble("skill.damage.outer", 20.0));
+    }
+
+    public boolean damageCaster() {
+        return modules.skills().getBoolean("skill.damage-caster", plugin.getConfig().getBoolean("skill.damage-caster", false));
+    }
+
+    public double knockback() {
+        return modules.skills().getDouble("skill.impact.knockback", plugin.getConfig().getDouble("skill.impact.knockback", 2.2));
+    }
+
+    public double verticalKnockback() {
+        return modules.skills().getDouble("skill.impact.vertical-knockback", plugin.getConfig().getDouble("skill.impact.vertical-knockback", 0.55));
+    }
 }
