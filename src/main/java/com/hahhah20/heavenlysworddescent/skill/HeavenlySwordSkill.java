@@ -79,8 +79,14 @@ public final class HeavenlySwordSkill {
                     }
                 } catch (Throwable error) {
                     plugin.getLogger().severe("天剑降临异常: " + error.getClass().getSimpleName() + ": " + error.getMessage());
-                    finish();
-                    cancel();
+                    // Once the blade has landed, a particle/sound/module exception is not
+                    // allowed to destroy the gameplay entity. Resume the bounded linger phase.
+                    if (sword != null && sword.exists() && sword.isLanded()) {
+                        beginLingerSafely();
+                    } else {
+                        finish();
+                        cancel();
+                    }
                 }
             }
         };
@@ -124,8 +130,6 @@ public final class HeavenlySwordSkill {
         effects.falling(sword.location(), sword.velocity());
 
         if (!alive && sword.isLanded()) {
-            // The landing event is handled once, then the sword is explicitly held in
-            // LINGERING for the configured duration. No landing effect can end the sword.
             state = SwordState.IMPACT;
             embedTick = 0;
             lingerTick = 0;
@@ -142,31 +146,45 @@ public final class HeavenlySwordSkill {
             return;
         }
 
-        // Lock the display at its landed position before any particle/sound code runs.
         sword.keepLanded();
 
         if (!impactVisualApplied) {
             try {
                 effects.impact(target, caster);
             } catch (Throwable error) {
-                // Visual failures must never remove the sword.
                 plugin.getLogger().warning("天剑落地特效异常（保留剑本体）: " + error.getClass().getSimpleName() + ": " + error.getMessage());
+            } finally {
+                impactVisualApplied = true;
             }
-            impactVisualApplied = true;
         }
 
         if (!impactDamageApplied) {
             try {
                 damage.impact(caster, target);
             } catch (Throwable error) {
-                plugin.getLogger().warning("天剑命中伤害异常（不影响剑本体驻留）: " + error.getMessage());
+                plugin.getLogger().warning("天剑命中伤害异常（不影响剑本体驻留）: " + error.getClass().getSimpleName() + ": " + error.getMessage());
+            } finally {
+                impactDamageApplied = true;
             }
-            impactDamageApplied = true;
         }
 
-        // Do not wait for another state transition to preserve the landed ItemDisplay.
-        // The first 8 linger ticks are the visual embed/settling animation.
+        // Enter the persistent landed phase immediately. The visual modules are isolated
+        // so none of them can trigger the cleanup path.
         state = SwordState.LINGERING;
+    }
+
+    private void beginLingerSafely() {
+        if (sword == null || !sword.exists() || !sword.isLanded()) {
+            finish();
+            return;
+        }
+        if (lingerDurationTicks <= 0) {
+            lingerDurationTicks = Math.max(1, (int) Math.ceil(config.lingerSeconds() * 20.0));
+        }
+        state = SwordState.LINGERING;
+        if (lingerTick >= lingerDurationTicks) {
+            lingerTick = 0;
+        }
     }
 
     private void linger() {
@@ -175,24 +193,35 @@ public final class HeavenlySwordSkill {
             return;
         }
 
-        // Keep the ItemDisplay anchored every tick for the entire linger window.
+        // Anchor the actual ItemDisplay before and after visual work.
         sword.keepLanded();
         lingerTick++;
 
-        if (embedTick <= EMBED_DURATION_TICKS) {
-            effects.embed(target, embedTick, EMBED_DURATION_TICKS);
-            embedTick++;
+        try {
+            if (embedTick <= EMBED_DURATION_TICKS) {
+                effects.embed(target, embedTick, EMBED_DURATION_TICKS);
+                embedTick++;
+            }
+        } catch (Throwable error) {
+            plugin.getLogger().warning("天剑插地动画异常（继续驻留）: " + error.getClass().getSimpleName() + ": " + error.getMessage());
+            embedTick = EMBED_DURATION_TICKS + 1;
         }
 
-        effects.lingering(target, sword.location(), lingerTick, lingerDurationTicks);
+        try {
+            effects.lingering(target, sword.location(), lingerTick, lingerDurationTicks);
+        } catch (Throwable error) {
+            plugin.getLogger().warning("天剑驻留特效异常（继续驻留）: " + error.getClass().getSimpleName() + ": " + error.getMessage());
+        }
 
         if (lingerTick % config.lingerDamageInterval() == 0) {
             try {
                 damage.lingering(caster, sword.location());
             } catch (Throwable error) {
-                plugin.getLogger().warning("天剑持续伤害异常（不影响剑本体驻留）: " + error.getMessage());
+                plugin.getLogger().warning("天剑持续伤害异常（不影响剑本体驻留）: " + error.getClass().getSimpleName() + ": " + error.getMessage());
             }
         }
+
+        sword.keepLanded();
 
         if (lingerTick >= lingerDurationTicks) {
             finish();
@@ -208,12 +237,12 @@ public final class HeavenlySwordSkill {
         try {
             if (sword != null) sword.remove();
         } catch (Throwable error) {
-            plugin.getLogger().warning("天剑实体清理异常: " + error.getMessage());
+            plugin.getLogger().warning("天剑实体清理异常: " + error.getClass().getSimpleName() + ": " + error.getMessage());
         } finally {
             try {
                 done.run();
             } catch (Throwable error) {
-                plugin.getLogger().warning("天剑完成回调异常: " + error.getMessage());
+                plugin.getLogger().warning("天剑完成回调异常: " + error.getClass().getSimpleName() + ": " + error.getMessage());
             }
         }
     }
