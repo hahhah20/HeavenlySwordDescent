@@ -10,11 +10,10 @@ import org.bukkit.Sound;
 import org.bukkit.entity.Player;
 import org.bukkit.scheduler.BukkitRunnable;
 
-/**
- * V2.2.0 skill orchestrator. Owns targeting and phase transitions while
- * delegating entity, model, effect and damage work to dedicated modules.
- */
+/** V2.2 skill orchestrator with a staged ground-embed impact pass. */
 public final class HeavenlySwordSkill {
+    private static final int EMBED_DURATION_TICKS = 8;
+
     private final HeavenlySwordDescentPlugin plugin;
     private final Player caster;
     private final Runnable done;
@@ -27,8 +26,10 @@ public final class HeavenlySwordSkill {
     private SwordState state;
     private int tick;
     private int lingerTick;
+    private int embedTick;
     private long lingerEndNanos;
     private boolean finished;
+    private boolean impactDamageApplied;
     private BukkitRunnable task;
 
     public HeavenlySwordSkill(HeavenlySwordDescentPlugin plugin, Player caster, Runnable done) {
@@ -71,6 +72,7 @@ public final class HeavenlySwordSkill {
                             tick++;
                             fall();
                         }
+                        case IMPACT -> impact();
                         case LINGERING -> linger();
                         default -> { }
                     }
@@ -128,17 +130,38 @@ public final class HeavenlySwordSkill {
 
         if (!alive && sword.isLanded()) {
             state = SwordState.IMPACT;
-            try {
-                effects.impact(target, caster);
-                damage.impact(caster, target);
-            } catch (Throwable error) {
-                plugin.getLogger().warning("天剑命中阶段异常（不影响剑本体驻留）: " + error.getMessage());
-            }
+            embedTick = 0;
+            impactDamageApplied = false;
+            plugin.getLogger().info("[Sword] LANDED -> IMPACT EMBED (8 ticks)");
+        }
+    }
 
+    private void impact() {
+        if (!sword.exists() || !sword.isLanded()) {
+            finish();
+            return;
+        }
+
+        sword.keepLanded();
+        effects.embed(target, embedTick, EMBED_DURATION_TICKS);
+
+        // Gameplay impact damage remains a single event at the start of impact.
+        if (!impactDamageApplied) {
+            try {
+                damage.impact(caster, target);
+                impactDamageApplied = true;
+            } catch (Throwable error) {
+                plugin.getLogger().warning("天剑命中伤害异常（不影响剑本体驻留）: " + error.getMessage());
+                impactDamageApplied = true;
+            }
+        }
+
+        embedTick++;
+        if (embedTick > EMBED_DURATION_TICKS) {
             lingerTick = 0;
             lingerEndNanos = System.nanoTime() + (long) (config.lingerSeconds() * 1_000_000_000L);
             state = SwordState.LINGERING;
-            plugin.getLogger().info("[Sword] LANDED -> LINGERING (" + config.lingerSeconds() + "s)");
+            plugin.getLogger().info("[Sword] IMPACT EMBED -> LINGERING (" + config.lingerSeconds() + "s)");
         }
     }
 
