@@ -1,14 +1,23 @@
 # Changelog
 
 ## 2.2.0
-- 开始正式模块化天剑降临技能。
+- 完成天剑降临技能模块化重构。
+- 新增 `skill/HeavenlySwordSkill`，负责目标锁定与 `TARGET_LOCK -> CHARGING -> FALLING -> IMPACT -> LINGERING -> CLEANUP` 流程。
+- `skill/HeavenlySword` 改为兼容旧调用方的薄封装。
 - 新增 `entity/HeavenlySwordEntity`，负责巨剑实体位置、下落物理、落地与驻留生命周期。
 - 新增 `model/SwordModelController`，负责 ItemDisplay 模型、缩放与水平面向释放者。
-- `HeavenlySword` 改为通过实体层驱动巨剑，不再直接依赖 `SwordProjectile`。
-- 保留 V2.1.20 的 `+135° Z` 剑身基准姿态与水平面向玩家逻辑。
-- 保留现有蓄力、下落、冲击、分层伤害、驻留和持续伤害行为。
-- Maven 版本统一为 2.2.0。
-- 新增 `docs/V2.2.0.md`，记录模块边界与测试重点。
+- 新增 `effect/SwordEffectManager`，统一调度预警、天空能量、下落拖尾与落地冲击特效。
+- `ImpactEffect` 改为纯视觉效果，不再直接执行伤害。
+- 新增 `damage/SwordDamageHandler`，作为天剑技能统一伤害入口。
+- `DamageManager` 改为底层分层伤害实现，并通过 `SkillConfig` 读取参数。
+- 新增 `config/ModuleConfig` 和模块化 `SkillConfig`。
+- 新增 `skills.yml`、`sword.yml`、`effects.yml`，并保留 `config.yml` 作为兼容回退。
+- `WarningEffect`、`EnergyEffect`、`SwordTrail` 和冲击裂纹数量接入模块化配置。
+- 移除旧 `skill/SwordProjectile.java` 实现。
+- 保留 V2.1.20 的 `+135° Z` 剑身基准姿态与只使用水平 X/Z 面向玩家的逻辑。
+- 保留蓄力、下落、冲击、分层伤害、击退、至少 4 秒驻留和持续伤害行为。
+- Maven 与 `plugin.yml` 版本统一为 2.2.0。
+- 更新 `docs/V2.2.0.md` 与 README，记录最终模块边界和实机测试重点。
 
 ## 2.1.20
 - 严格从 V2.1.14 版本的巨剑模型姿态作为基准重新修改。
