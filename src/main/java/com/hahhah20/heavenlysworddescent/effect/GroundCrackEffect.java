@@ -5,147 +5,162 @@ import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.Particle;
 import org.bukkit.World;
+import org.bukkit.block.Block;
 import org.bukkit.block.data.BlockData;
 
-/** High-contrast radial fissures that make the impact surface read as cracked ground. */
+/**
+ * Ground fissure VFX for the sword impact.
+ *
+ * The important detail is that the fissures are anchored to the actual top surface of the
+ * terrain. The previous implementation rendered them below the block surface, which made the
+ * particles disappear into grass/stone from the player's camera and left only the shockwave visible.
+ */
 public final class GroundCrackEffect {
     private GroundCrackEffect() { }
 
     public static void create(Location center, int rings) {
-        createStage(center, rings, 4.8);
+        createStage(center, rings, 7.5);
     }
 
-    /** Draw the fracture network up to the requested radius, so the cracks visibly grow outward. */
+    /** Draw a visible radial fracture network on top of the actual terrain surface. */
     public static void createStage(Location center, int rings, double maxRadius) {
         World world = center.getWorld();
         if (world == null) return;
-        BlockData data = groundData(world, center);
-        int rayCount = Math.max(12, Math.min(18, Math.max(2, rings) * 4));
-        double limit = Math.max(0.45, Math.min(6.8, maxRadius));
 
-        // Dense fracture origin: the first frame must visibly read as broken ground, not a ring.
-        for (int i = 0; i < 30; i++) {
-            double angle = Math.PI * 2.0 * i / 30.0;
-            double radius = 0.20 + (i % 6) * 0.115;
-            crackMark(world, surface(center, radius, angle, 0.115), data, 5, 1.15f, 0.28);
+        GroundSurface ground = groundSurface(world, center);
+        int rayCount = Math.max(12, Math.min(18, Math.max(2, rings) * 4));
+        double limit = Math.max(0.45, Math.min(7.5, maxRadius));
+
+        // Dense impact crater: this is deliberately a broken plate, not a circle.
+        for (int i = 0; i < 34; i++) {
+            double angle = Math.PI * 2.0 * i / 34.0;
+            double radius = 0.16 + (i % 8) * 0.10;
+            drawSegment(world, ground, radius, angle, 0.13, true);
         }
 
         for (int ray = 0; ray < rayCount; ray++) {
             double angle = Math.PI * 2.0 * ray / rayCount
-                    + Math.sin(ray * 1.91) * 0.11;
-            double length = Math.min(limit, 3.9 + (ray % 5) * 0.66);
-            if (length <= 0.4) continue;
+                    + Math.sin(ray * 1.91) * 0.13;
+            double length = Math.min(limit, 4.2 + (ray % 5) * 0.72);
+            drawCrack(world, ground, angle, 0.28, length, true);
 
-            drawCrack(world, center, data, angle, 0.28, length, true);
-
-            // Split branches make the pattern look like a real fractured surface instead of spokes.
-            if (ray % 2 == 0 && limit > 1.35) {
-                double branchAngle = angle + (ray % 4 == 0 ? 0.48 : -0.48);
-                drawCrack(world, center, data, branchAngle,
-                        1.00 + (ray % 3) * 0.22,
-                        Math.min(limit, 2.65 + (ray % 3) * 0.38), false);
+            // Main branches create an irregular shattered-ground pattern.
+            if (ray % 2 == 0 && limit > 1.3) {
+                double branchAngle = angle + (ray % 4 == 0 ? 0.46 : -0.46);
+                drawCrack(world, ground, branchAngle,
+                        0.95 + (ray % 3) * 0.24,
+                        Math.min(limit, 3.0 + (ray % 3) * 0.45), false);
             }
             if (ray % 3 == 0 && limit > 2.2) {
-                drawCrack(world, center, data, angle - 0.30,
-                        1.95, Math.min(limit, 3.75), false);
+                drawCrack(world, ground, angle - 0.30,
+                        1.85, Math.min(limit, 4.25), false);
             }
         }
     }
 
-    /** Refreshes the strongest fracture segments while the sword is embedded. */
+    /** Re-light the existing fracture network while the sword remains embedded. */
     public static void tick(Location center, int tick, int rings) {
         World world = center.getWorld();
         if (world == null) return;
-        BlockData data = groundData(world, center);
+
+        GroundSurface ground = groundSurface(world, center);
         int rayCount = Math.max(12, Math.min(18, Math.max(2, rings) * 4));
         boolean flare = tick % 18 == 0 || tick % 18 == 1 || tick % 18 == 2;
-        double rotation = tick * 0.003;
+        double rotation = tick * 0.0025;
 
         for (int ray = 0; ray < rayCount; ray++) {
             double angle = Math.PI * 2.0 * ray / rayCount + rotation
-                    + Math.sin(ray * 2.4) * 0.065;
-            double length = 3.55 + (ray % 4) * 0.58;
+                    + Math.sin(ray * 2.4) * 0.075;
+            double length = 4.0 + (ray % 4) * 0.68;
 
-            for (double d = 0.28; d <= length; d += 0.16) {
-                int segment = (int) Math.floor(d / 0.16);
-                if (!flare && (segment + ray + tick / 5) % 10 == 0) continue;
+            for (double d = 0.25; d <= length; d += 0.12) {
+                int segment = (int) Math.floor(d / 0.12);
+                if (!flare && (segment + ray + tick / 5) % 11 == 0) continue;
 
-                double wobble = Math.sin(d * 4.5 + ray * 1.7) * 0.17;
-                Location p = surface(center, d, angle + wobble, flare ? 0.120 : 0.105);
-                crackMark(world, p, data, flare ? 5 : 4,
-                        flare ? 1.18f : 1.02f, flare ? 0.25 : 0.21);
+                double wobble = Math.sin(d * 4.7 + ray * 1.7) * 0.15;
+                drawSegment(world, ground, d, angle + wobble, 0.10, flare);
 
-                // Secondary jagged edge makes the fissure visibly wider than a particle dotted line.
-                if (segment % 3 == 0) {
+                // Short side fracture makes each main fissure read as a cracked surface.
+                if (segment % 4 == 0) {
                     double side = angle + Math.PI * 0.5;
-                    Location edge = p.clone().add(
-                            Math.cos(side) * (flare ? 0.075 : 0.060), 0,
-                            Math.sin(side) * (flare ? 0.075 : 0.060));
-                    world.spawnParticle(Particle.DUST, edge, flare ? 3 : 2,
-                            0.018, 0.004, 0.018, 0.0,
-                            new Particle.DustOptions(Color.fromRGB(255, 118, 18),
-                                    flare ? 0.92f : 0.76f));
+                    drawSegment(world, ground, d,
+                            angle + wobble + Math.sin(segment * 1.9) * 0.03,
+                            0.065, flare);
+                    Location sidePoint = ground.point(d, angle + wobble, 0.026);
+                    sidePoint.add(Math.cos(side) * 0.095, 0, Math.sin(side) * 0.095);
+                    world.spawnParticle(Particle.DUST, sidePoint, 1, 0, 0, 0, 0,
+                            new Particle.DustOptions(Color.fromRGB(255, 123, 18),
+                                    flare ? 0.92f : 0.72f));
                 }
             }
         }
     }
 
-    private static void drawCrack(World world, Location center, BlockData data,
+    private static void drawCrack(World world, GroundSurface ground,
                                   double angle, double start, double end, boolean major) {
+        double step = major ? 0.12 : 0.14;
         int segment = 0;
-        double step = major ? 0.16 : 0.18;
         for (double d = start; d <= end; d += step) {
-            // Short gaps keep the fracture organic while the dense points still read as one crack.
-            if ((segment + (int) Math.round(angle * 10.0)) % (major ? 11 : 9) == 0) {
+            // Only tiny gaps: the player must read one continuous crack from a distance.
+            if ((segment + (int) Math.round(angle * 10.0)) % (major ? 15 : 12) == 0) {
                 segment++;
                 continue;
             }
 
-            double wobble = Math.sin(d * 4.0 + angle * 5.0) * (major ? 0.17 : 0.15);
-            Location p = surface(center, d, angle + wobble, major ? 0.115 : 0.105);
-            crackMark(world, p, data, major ? 5 : 4,
-                    major ? 1.15f : 1.00f, major ? 0.25 : 0.21);
+            double wobble = Math.sin(d * 4.15 + angle * 5.0) * (major ? 0.17 : 0.14);
+            drawSegment(world, ground, d, angle + wobble,
+                    major ? 0.115 : 0.095, major);
 
-            if (segment % (major ? 3 : 4) == 0) {
+            // Wider broken edge on major fissures.
+            if (major && segment % 3 == 0) {
                 double side = angle + Math.PI * 0.5;
-                Location edge = p.clone().add(
-                        Math.cos(side) * (major ? 0.075 : 0.060), 0,
-                        Math.sin(side) * (major ? 0.075 : 0.060));
-                world.spawnParticle(Particle.DUST, edge, 2,
-                        0.018, 0.004, 0.018, 0.0,
-                        new Particle.DustOptions(Color.fromRGB(255, 122, 18), 0.80f));
+                Location edge = ground.point(d, angle + wobble, 0.032);
+                edge.add(Math.cos(side) * 0.11, 0, Math.sin(side) * 0.11);
+                world.spawnParticle(Particle.DUST, edge, 1, 0, 0, 0, 0,
+                        new Particle.DustOptions(Color.fromRGB(255, 130, 18), 0.82f));
             }
             segment++;
         }
     }
 
-    /** Render a thick dark fissure, bright molten edge and actual fragments from the sampled ground. */
-    private static void crackMark(World world, Location point, BlockData data,
-                                  int count, float goldSize, double debrisSpread) {
-        // Large dark core is deliberately oversized so the crack remains visible against grass and stone.
-        world.spawnParticle(Particle.DUST, point, count + 4,
-                0.034, 0.008, 0.034, 0.0,
-                new Particle.DustOptions(Color.fromRGB(12, 5, 2), 2.75f));
-        world.spawnParticle(Particle.DUST, point.clone().add(0, 0.024, 0), count + 1,
-                0.022, 0.005, 0.022, 0.0,
-                new Particle.DustOptions(Color.fromRGB(255, 155, 22), goldSize));
-        world.spawnParticle(Particle.BLOCK_CRUMBLE, point, Math.max(2, count / 2),
-                debrisSpread, 0.018, debrisSpread, 0.010, data);
+    /** Render one precise crack segment instead of a cloud of particles. */
+    private static void drawSegment(World world, GroundSurface ground,
+                                    double radius, double angle, double width, boolean hot) {
+        Location center = ground.point(radius, angle, 0.022);
+        double side = angle + Math.PI * 0.5;
+
+        // Two close lines give the fissure a physical width without hiding the terrain.
+        Location left = center.clone().add(Math.cos(side) * width, 0, Math.sin(side) * width);
+        Location right = center.clone().add(-Math.cos(side) * width, 0, -Math.sin(side) * width);
+
+        world.spawnParticle(Particle.DUST, center, 1, 0, 0, 0, 0,
+                new Particle.DustOptions(Color.fromRGB(24, 7, 2), hot ? 2.05f : 1.75f));
+        world.spawnParticle(Particle.DUST, left, 1, 0, 0, 0, 0,
+                new Particle.DustOptions(Color.fromRGB(255, 120, 15), hot ? 1.15f : 0.92f));
+        world.spawnParticle(Particle.DUST, right, 1, 0, 0, 0, 0,
+                new Particle.DustOptions(Color.fromRGB(255, 168, 32), hot ? 0.90f : 0.68f));
+
+        if (hot) {
+            world.spawnParticle(Particle.END_ROD, center, 1, 0, 0, 0, 0);
+        }
     }
 
-    private static Location surface(Location center, double radius, double angle, double yOffset) {
-        return center.clone().add(
-                Math.cos(angle) * radius,
-                -0.86 + yOffset,
-                Math.sin(angle) * radius
-        );
-    }
-
-    private static BlockData groundData(World world, Location center) {
-        Location sample = center.clone().add(0, -1.0, 0);
-        var block = world.getBlockAt(sample);
-        return block.getType().isSolid()
+    private static GroundSurface groundSurface(World world, Location center) {
+        int x = center.getBlockX();
+        int z = center.getBlockZ();
+        Block block = world.getHighestBlockAt(x, z);
+        BlockData data = block.getType().isSolid()
                 ? block.getBlockData()
                 : Material.STONE.createBlockData();
+        return new GroundSurface(center.getX(), center.getZ(), block.getY() + 1.02, data);
+    }
+
+    private record GroundSurface(double x, double z, double y, BlockData data) {
+        private Location point(double radius, double angle, double offsetY) {
+            return new Location(null,
+                    x + Math.cos(angle) * radius,
+                    y + offsetY,
+                    z + Math.sin(angle) * radius);
+        }
     }
 }
