@@ -22,6 +22,9 @@ public final class ImpactEffect {
         world.spawnParticle(Particle.EXPLOSION_EMITTER, center, 1);
         world.spawnParticle(Particle.FLASH, center, 1);
 
+        // The blade remains vertically oriented; this pass visually sells the moment it pierces the ground.
+        SwordEmbedEffect.execute(plugin, center);
+
         for (double y = 0; y <= 9; y += .25) {
             world.spawnParticle(Particle.END_ROD, center.clone().add(0, y, 0), 3, .25, .1, .25, .01);
         }
