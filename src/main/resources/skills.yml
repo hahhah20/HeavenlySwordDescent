@@ -2,6 +2,18 @@ skill:
   charge-ticks: 40
   cooldown-seconds: 20.0
   target-range: 40
+  radius:
+    core: 2.0
+    middle: 3.5
+    outer: 5.0
+  damage:
+    core: 80.0
+    middle: 45.0
+    outer: 20.0
+  impact:
+    knockback: 2.2
+    vertical-knockback: 0.55
+  damage-caster: false
   linger:
     seconds: 4.0
     damage-interval-ticks: 10
