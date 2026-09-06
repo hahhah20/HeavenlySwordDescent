@@ -1,0 +1,11 @@
+skill:
+  charge-ticks: 40
+  cooldown-seconds: 20.0
+  target-range: 40
+  linger:
+    seconds: 4.0
+    damage-interval-ticks: 10
+    damage-multiplier: 0.10
+  display:
+    actionbar: true
+    chat-message: false
